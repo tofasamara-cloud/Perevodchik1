@@ -182,8 +182,8 @@
   <div class="app">
     <section class="card">
       <h1>Карманный переводчик RU ↔ VI</h1>
-      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Эта сборка усилена для двустороннего быстрого переключения после готовой фразы: особенно для сцен, где вьетнамская реплика сразу сменяется русской и наоборот.</div>
-      <div class="version">Версия: v2.9-ru-vi-bidirectional-fast-switch • 2026-04-17</div>
+      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Добавлен режим «Кино»: после каждого готового сегмента система почти без ожидания принудительно сканирует противоположный язык, чтобы быстрее ловить соседнюю реплику в фильме.</div>
+      <div class="version">Версия: v3.0-ru-vi-movie-scan • 2026-04-17</div>
     </section>
 
     <section class="card">
@@ -199,6 +199,9 @@
         <button id="langRu" class="secondary">Слушать русский</button>
         <button id="langVi" class="secondary">Слушать вьетнамский</button>
       </div>
+      <div class="row">
+        <button id="movieModeBtn" class="secondary">Режим Кино: выкл</button>
+      </div>
       <div class="row grid2">
         <button id="clearCurrent" class="secondary">Очистить текущий текст</button>
         <button id="clearFeed" class="secondary">Очистить ленту</button>
@@ -210,6 +213,7 @@
       <div class="pill"><span class="dot ok"></span><span id="recognizerText">Распознавание: —</span></div>
       <div class="pill"><span class="dot ok"></span><span id="detectedText">Определённый язык: —</span></div>
       <div class="pill"><span class="dot ok"></span><span id="confidenceText">Уверенность: 0.00</span></div>
+      <div class="pill"><span class="dot ok"></span><span id="movieModeText">Режим Кино: выключен</span></div>
       <div class="small">Допустимы только ru, vi и unknown. Язык подтверждается по устойчивым признакам, шум не превращается в текст, а перевод отправляется на мягкой или жёсткой границе короткой фразы.</div>
     </section>
 
@@ -233,10 +237,10 @@
 
   <script>
     // ===== VERSION MARK =====
-    const APP_VERSION = 'v2.9-ru-vi-bidirectional-fast-switch';
+    const APP_VERSION = 'v3.0-ru-vi-movie-scan';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-    const STORAGE_KEY = 'translator_feed_v29_ru_vi';
+    const STORAGE_KEY = 'translator_feed_v30_ru_vi';
 
     // ===== WEB SPEECH =====
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -249,6 +253,7 @@
     const langViBtn = document.getElementById('langVi');
     const clearCurrentBtn = document.getElementById('clearCurrent');
     const clearFeedBtn = document.getElementById('clearFeed');
+    const movieModeBtn = document.getElementById('movieModeBtn');
 
     const statusText = document.getElementById('statusText');
     const recognizerText = document.getElementById('recognizerText');
@@ -279,6 +284,9 @@
     let pendingFastSwitch = null;
     let switchCooldownUntil = 0;
     let segmentSerial = 0;
+    let movieMode = true;
+    let forcedScanLang = null;
+    let forcedScanUntil = 0;
     let lastAnalysis = { lang: 'unknown', confidence: 0, tokensRu: 0, tokensVi: 0 };
 
     const LANG_META = {
@@ -297,8 +305,11 @@
     const SOFT_WORDS_MIN = 6;
     const SOFT_WORDS_MAX = 10;
     const HARD_WORDS_MAX = 15;
+    const MOVIE_SCAN_MS = 1250;
+    const MOVIE_RESTART_MS = 45;
 
     const confidenceText = document.getElementById('confidenceText');
+    const movieModeText = document.getElementById('movieModeText');
 
     function setStatus(text, live = false) {
       statusText.textContent = text;
@@ -310,6 +321,9 @@
       modeManualBtn.classList.toggle('active', !autoMode);
       langRuBtn.classList.toggle('active', !autoMode && manualLang === 'ru');
       langViBtn.classList.toggle('active', !autoMode && manualLang === 'vi');
+      movieModeBtn.classList.toggle('active', movieMode);
+      movieModeBtn.textContent = `Режим Кино: ${movieMode ? 'вкл' : 'выкл'}`;
+      movieModeText.textContent = `Режим Кино: ${movieMode ? 'включён' : 'выключен'}`;
       langRuBtn.disabled = autoMode;
       langViBtn.disabled = autoMode;
     }
@@ -543,7 +557,7 @@
       if (!autoMode || !isRunning) return;
       if (!nextLang || nextLang === activeRecognitionLang) return;
       if (now < switchCooldownUntil) return;
-      switchCooldownUntil = now + 850;
+      switchCooldownUntil = now + (movieMode ? 380 : 850);
       pendingFastSwitch = nextLang;
       preferredAutoLang = nextLang;
       holdLanguageUntil = 0;
@@ -556,25 +570,33 @@
         } catch {
           startRecognitionCycle();
         }
-      }, 70);
+      }, movieMode ? MOVIE_RESTART_MS : 70);
     }
 
     function shouldSwitchAutoLanguage() {
       const now = Date.now();
+      if (movieMode && forcedScanLang && now < forcedScanUntil) {
+        return now - lastSpeechAt > 280;
+      }
       if (now < holdLanguageUntil) return false;
-      if (now - lastSpeechAt < 620) return false;
+      if (now - lastSpeechAt < (movieMode ? 320 : 620)) return false;
       return true;
     }
 
     function pickRecognitionLanguage() {
       if (!autoMode) return manualLang;
       const now = Date.now();
+      if (movieMode && forcedScanLang && now < forcedScanUntil) return forcedScanLang;
       if (now < holdLanguageUntil && lastDetectedLang) return lastDetectedLang;
       return preferredAutoLang || 'ru';
     }
 
     function flipPreferredLanguage() {
       preferredAutoLang = preferredAutoLang === 'ru' ? 'vi' : 'ru';
+      if (movieMode) {
+        forcedScanLang = preferredAutoLang;
+        forcedScanUntil = Date.now() + MOVIE_SCAN_MS;
+      }
     }
 
     function syncLanguageLabels(detected) {
@@ -632,12 +654,18 @@
         preferredAutoLang = oppositeLang;
         holdLanguageUntil = 0;
         pendingFastSwitch = oppositeLang;
+        if (movieMode) {
+          forcedScanLang = oppositeLang;
+          forcedScanUntil = Date.now() + MOVIE_SCAN_MS;
+        }
         setTimeout(() => {
           if (!isRunning || !autoMode) return;
           if (activeRecognitionLang === sourceLang) {
-            triggerFastAutoSwitch(oppositeLang, `Фраза завершена, быстро пробую ${LANG_META[oppositeLang].label}`);
+            triggerFastAutoSwitch(oppositeLang, movieMode
+              ? `Сегмент готов, принудительно сканирую ${LANG_META[oppositeLang].label}`
+              : `Фраза завершена, быстро пробую ${LANG_META[oppositeLang].label}`);
           }
-        }, 40);
+        }, movieMode ? 10 : 40);
       }
     }
 
@@ -656,7 +684,11 @@
       rec.onstart = () => {
         activeRecognitionLang = langCode;
         syncLanguageLabels(lastDetectedLang);
-        setStatus(`Слушаю: ${LANG_META[langCode].label}`, true);
+        if (movieMode && forcedScanLang === langCode && Date.now() < forcedScanUntil) {
+          setStatus(`Сканирую после сегмента: ${LANG_META[langCode].label}`, true);
+        } else {
+          setStatus(`Слушаю: ${LANG_META[langCode].label}`, true);
+        }
       };
 
       rec.onresult = (event) => {
@@ -701,6 +733,10 @@
         if (combined && (now - lastSpeechAt) >= 0) {
           const analysis = analyzeDraft();
           const strongOpposite = isStrongOppositeSignal(combined, activeRecognitionLang);
+          if (movieMode && strongOpposite) {
+            forcedScanLang = strongOpposite;
+            forcedScanUntil = Date.now() + MOVIE_SCAN_MS;
+          }
           if (strongOpposite) {
             triggerFastAutoSwitch(strongOpposite, `Быстрое переключение на ${LANG_META[strongOpposite].label}`);
             return;
@@ -734,7 +770,9 @@
 
       rec.onend = () => {
         if (isStopping || !isRunning) {
-          setStatus('Остановлено', false);
+          forcedScanLang = null;
+      forcedScanUntil = 0;
+      setStatus('Остановлено', false);
           return;
         }
 
@@ -742,6 +780,10 @@
 
         if (pendingFastSwitch) {
           preferredAutoLang = pendingFastSwitch;
+          if (movieMode) {
+            forcedScanLang = pendingFastSwitch;
+            forcedScanUntil = Date.now() + MOVIE_SCAN_MS;
+          }
           pendingFastSwitch = null;
           scheduleRestart();
           return;
@@ -760,7 +802,7 @@
       clearTimeout(restartTimer);
       restartTimer = setTimeout(() => {
         startRecognitionCycle();
-      }, 180);
+      }, movieMode ? 60 : 180);
     }
 
     function startRecognitionCycle() {
@@ -843,6 +885,8 @@
       isRunning = true;
       isStopping = false;
       clearCurrent();
+      forcedScanLang = null;
+      forcedScanUntil = 0;
       setStatus('Запуск микрофона…', true);
       startRecognitionCycle();
 
@@ -895,6 +939,15 @@
       manualLang = 'vi';
       setButtons();
       if (isRunning && !autoMode) startRecognitionCycle();
+    });
+
+    movieModeBtn.addEventListener('click', () => {
+      movieMode = !movieMode;
+      if (!movieMode) {
+        forcedScanLang = null;
+        forcedScanUntil = 0;
+      }
+      setButtons();
     });
 
     clearCurrentBtn.addEventListener('click', () => {
