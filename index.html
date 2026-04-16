@@ -182,8 +182,8 @@
   <div class="app">
     <section class="card">
       <h1>Карманный переводчик RU ↔ VI</h1>
-      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Режим «Кино» после каждого готового сегмента быстро переключает распознавание на противоположный язык, но без слишком агрессивных перезапусков, чтобы не ломать транскрибацию.</div>
-      <div class="version">Версия: v3.0.1-ru-vi-movie-scan-fix • 2026-04-17</div>
+      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Стабильный режим для двух языков: русский и вьетнамский. Улучшена устойчивость транскрибации, уменьшены лишние перезапуски, добавлена диагностика событий распознавания и более безопасное переключение между RU и VI.</div>
+      <div class="version">Версия: v3.1-ru-vi-stable-diagnostics • 2026-04-17</div>
     </section>
 
     <section class="card">
@@ -214,6 +214,7 @@
       <div class="pill"><span class="dot ok"></span><span id="detectedText">Определённый язык: —</span></div>
       <div class="pill"><span class="dot ok"></span><span id="confidenceText">Уверенность: 0.00</span></div>
       <div class="pill"><span class="dot ok"></span><span id="movieModeText">Режим Кино: выключен</span></div>
+      <div class="pill"><span class="dot ok"></span><span id="diagText">Диагностика: start 0 • result 0 • end 0 • error 0</span></div>
       <div class="small">Допустимы только ru, vi и unknown. Язык подтверждается по устойчивым признакам, шум не превращается в текст, а перевод отправляется на мягкой или жёсткой границе короткой фразы.</div>
     </section>
 
@@ -235,14 +236,12 @@
     </section>
   </div>
 
+  
   <script>
-    // ===== VERSION MARK =====
-    const APP_VERSION = 'v3.0.1-ru-vi-movie-scan-fix';
+    const APP_VERSION = 'v3.1-ru-vi-stable-diagnostics';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-    const STORAGE_KEY = 'translator_feed_v301_ru_vi';
-
-    // ===== WEB SPEECH =====
+    const STORAGE_KEY = 'translator_feed_v31_ru_vi';
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const startBtn = document.getElementById('startBtn');
@@ -262,6 +261,20 @@
     const currentTranslation = document.getElementById('currentTranslation');
     const feedEl = document.getElementById('feed');
     const liveDot = document.getElementById('liveDot');
+    const confidenceText = document.getElementById('confidenceText');
+    const movieModeText = document.getElementById('movieModeText');
+    const diagText = document.getElementById('diagText');
+
+    const LANG_META = {
+      ru: { rec: 'ru-RU', label: 'Русский', target: 'vi', targetLabel: 'Вьетнамский' },
+      vi: { rec: 'vi-VN', label: 'Tiếng Việt', target: 'ru', targetLabel: 'Русский' }
+    };
+
+    const RU_HINTS = ['и','что','это','как','привет','спасибо','пожалуйста','да','нет','хорошо','сегодня','завтра','где','когда','почему','можно','нужно','тебя','меня','сейчас','после','потом','она','он','мы','вы'];
+    const VI_HINTS = ['xin','chào','cảm','ơn','không','được','tôi','bạn','là','đi','đây','gì','sao','này','vâng','rồi','nhé','với','cho','đang','một','hai','ba','thôi','nha','em','anh','chị','trời','ơi','đâu','đúng','biết','muốn','phải'];
+    const EN_HINTS = ['hello','hi','come','today','tomorrow','please','thanks','thank','you','yes','no','good','morning','evening','where','why','what','when','how','and','the','is','are','to','of','in','on'];
+    const RU_NON_BREAK = new Set(['и','а','но','или','что','если','когда','чтобы','потому','потому что','как','в','на','к','по','с','со','из','за','от','до','у','о','об','под','над','при']);
+    const VI_NON_BREAK = new Set(['và','nhưng','nếu','khi','vì','rằng','là','ở','với','cho','của','để','từ','mà','thì']);
 
     let recognition = null;
     let isRunning = false;
@@ -269,47 +282,44 @@
     let autoMode = true;
     let manualLang = 'ru';
     let activeRecognitionLang = 'ru';
-    let lastDetectedLang = null;
     let preferredAutoLang = 'ru';
+    let lastDetectedLang = null;
+    let movieMode = false;
+    let feed = [];
     let draftFinalText = '';
     let interimBuffer = '';
+    let stableInterimText = '';
+    let stableInterimSince = 0;
     let lastSpeechAt = 0;
-    let autoSwitchTimer = null;
+    let lastResultAt = 0;
+    let lastStartAt = 0;
+    let holdLanguageUntil = 0;
     let restartTimer = null;
+    let healthTimer = null;
     let softBoundaryTimer = null;
     let hardBoundaryTimer = null;
     let requestCounter = 0;
-    let holdLanguageUntil = 0;
-    let feed = [];
-    let pendingFastSwitch = null;
-    let switchCooldownUntil = 0;
     let segmentSerial = 0;
-    let movieMode = false;
-    let lastAnalysis = { lang: 'unknown', confidence: 0, tokensRu: 0, tokensVi: 0 };
+    let lastAnalysis = { lang: 'unknown', confidence: 0, scoreRu: 0, scoreVi: 0, tokensRu: 0, tokensVi: 0 };
+    let diag = { start: 0, result: 0, end: 0, error: 0 };
 
-    const LANG_META = {
-      ru: { rec: 'ru-RU', label: 'Русский', target: 'vi', targetLabel: 'Вьетнамский' },
-      vi: { rec: 'vi-VN', label: 'Tiếng Việt', target: 'ru', targetLabel: 'Русский' }
-    };
-
-    const RU_HINTS = ['и','что','это','как','привет','спасибо','пожалуйста','да','нет','хорошо','сегодня','завтра','где','когда','почему','можно','нужно','тебя','меня','сейчас','после','потом'];
-    const VI_HINTS = ['xin','chào','cảm','ơn','không','được','tôi','bạn','là','đi','đây','gì','sao','này','vâng','rồi','nhé','với','cho','đang','một','hai','ba','thôi','nha','em','anh','chị','trời','ơi','đâu','đúng','biết','muốn','phải'];
-    const EN_HINTS = ['hello','hi','come','today','tomorrow','please','thanks','thank','you','yes','no','good','morning','evening','where','why','what','when','how','and','the','is','are','to','of','in','on'];
-    const RU_NON_BREAK = new Set(['и','а','но','или','что','если','когда','чтобы','потому','потому что','как','в','на','к','по','с','со','из','за','от','до','у','о','об','под','над','при']);
-    const VI_NON_BREAK = new Set(['và','nhưng','nếu','khi','vì','rằng','là','ở','với','cho','của','để','từ','mà','thì']);
-    const MIN_SPEECH_MS = 200;
-    const SOFT_BOUNDARY_MS = 360;
-    const HARD_BOUNDARY_MS = 650;
-    const SOFT_WORDS_MIN = 6;
+    const SOFT_BOUNDARY_MS = 450;
+    const HARD_BOUNDARY_MS = 900;
+    const SOFT_WORDS_MIN = 4;
     const SOFT_WORDS_MAX = 10;
-    const HARD_WORDS_MAX = 15;
-
-    const confidenceText = document.getElementById('confidenceText');
-    const movieModeText = document.getElementById('movieModeText');
+    const HARD_WORDS_MAX = 14;
+    const INTERIM_STABLE_MS = 1100;
+    const RESTART_DELAY_MS = 300;
+    const MOVIE_SWITCH_DELAY_MS = 120;
+    const NORMAL_SWITCH_DELAY_MS = 220;
 
     function setStatus(text, live = false) {
       statusText.textContent = text;
       liveDot.classList.toggle('live', live);
+    }
+
+    function updateDiag() {
+      diagText.textContent = `Диагностика: start ${diag.start} • result ${diag.result} • end ${diag.end} • error ${diag.error}`;
     }
 
     function setButtons() {
@@ -324,16 +334,20 @@
       langViBtn.disabled = autoMode;
     }
 
+    function escapeHtml(s) {
+      return String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    }
+
+    function formatTime(d = new Date()) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
     function saveFeed() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(feed));
     }
 
     function loadFeed() {
-      try {
-        feed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      } catch {
-        feed = [];
-      }
+      try { feed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { feed = []; }
       renderFeed();
     }
 
@@ -354,39 +368,29 @@
       `).join('');
     }
 
-    function escapeHtml(s) {
-      return String(s || '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
-    }
-
-    function formatTime(d = new Date()) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-
     function clearCurrent() {
       draftFinalText = '';
       interimBuffer = '';
+      stableInterimText = '';
+      stableInterimSince = 0;
       currentTranscript.textContent = '';
       currentTranslation.textContent = '';
       clearTimeout(softBoundaryTimer);
       clearTimeout(hardBoundaryTimer);
-      lastAnalysis = { lang: 'unknown', confidence: 0, tokensRu: 0, tokensVi: 0 };
+      lastAnalysis = { lang: 'unknown', confidence: 0, scoreRu: 0, scoreVi: 0, tokensRu: 0, tokensVi: 0 };
       updateConfidence(0);
+      syncLanguageLabels(null);
     }
 
     function updateCurrentTranscript() {
-      currentTranscript.textContent = [draftFinalText.trim(), interimBuffer.trim()].filter(Boolean).join('\n');
+      const parts = [];
+      if (draftFinalText.trim()) parts.push(draftFinalText.trim());
+      if (interimBuffer.trim()) parts.push(interimBuffer.trim());
+      currentTranscript.textContent = parts.join('\n');
     }
 
     function tokenize(text) {
-      return (text || '')
-        .toLowerCase()
-        .replace(/[.,!?;:()"“”'`~]/g, ' ')
-        .split(/\s+/)
-        .map(s => s.trim())
-        .filter(Boolean);
+      return (text || '').toLowerCase().replace(/[.,!?;:()"“”'`~]/g, ' ').split(/\s+/).map(s => s.trim()).filter(Boolean);
     }
 
     function normalizeForMatch(text) {
@@ -395,9 +399,7 @@
 
     function countHintMatches(norm, hints) {
       let total = 0;
-      for (const w of hints) {
-        if (norm.includes(` ${w} `)) total += norm.split(` ${w} `).length - 1;
-      }
+      for (const w of hints) if (norm.includes(` ${w} `)) total += norm.split(` ${w} `).length - 1;
       return total;
     }
 
@@ -405,103 +407,52 @@
       const t = String(text || '').trim().toLowerCase();
       if (!t) return false;
       if (/[а-яё]/i.test(t)) return false;
-      const viMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(t);
-      if (viMarks) return false;
+      if (/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(t)) return false;
       const norm = normalizeForMatch(t);
       const enCount = countHintMatches(norm, EN_HINTS);
       const viCount = countHintMatches(norm, VI_HINTS);
       const words = tokenize(t);
       if (!words.length) return false;
-      if (enCount >= 1 && viCount === 0) return true;
-      if (words.length >= 2 && /^[a-z\s]+$/.test(t) && viCount === 0) return true;
-      return false;
+      return (enCount >= 1 && viCount === 0) || (words.length >= 2 && /^[a-z\s]+$/.test(t) && viCount === 0);
     }
 
     function classifyRuVi(text) {
       const t = String(text || '').trim().toLowerCase();
       if (!t) return { lang: 'unknown', confidence: 0, scoreRu: 0, scoreVi: 0, tokensRu: 0, tokensVi: 0 };
-
-      let scoreRu = 0;
-      let scoreVi = 0;
-      let tokensRu = 0;
-      let tokensVi = 0;
+      let scoreRu = 0, scoreVi = 0, tokensRu = 0, tokensVi = 0;
       const norm = normalizeForMatch(t);
       const words = tokenize(t);
-
-      if (/[а-яё]/i.test(t)) {
-        scoreRu += 8;
-        tokensRu += 2;
-      }
+      if (/[а-яё]/i.test(t)) { scoreRu += 8; tokensRu += 2; }
       const viMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(t);
-      if (viMarks) {
-        scoreVi += 10;
-        tokensVi += 2;
-      }
-
-      for (const w of RU_HINTS) {
-        if (norm.includes(` ${w} `)) {
-          const count = norm.split(` ${w} `).length - 1;
-          scoreRu += count * 2.1;
-          tokensRu += count;
-        }
-      }
-      for (const w of VI_HINTS) {
-        if (norm.includes(` ${w} `)) {
-          const count = norm.split(` ${w} `).length - 1;
-          scoreVi += count * 2.1;
-          tokensVi += count;
-        }
-      }
-
-      const latinOnly = (t.match(/[a-z]/g) || []).length > 0 && !(t.match(/[а-яё]/gi) || []).length;
+      if (viMarks) { scoreVi += 10; tokensVi += 2; }
+      for (const w of RU_HINTS) if (norm.includes(` ${w} `)) { const c = norm.split(` ${w} `).length - 1; scoreRu += c * 2.1; tokensRu += c; }
+      for (const w of VI_HINTS) if (norm.includes(` ${w} `)) { const c = norm.split(` ${w} `).length - 1; scoreVi += c * 2.1; tokensVi += c; }
+      const latinOnly = /[a-z]/.test(t) && !/[а-яё]/i.test(t);
       const enCount = countHintMatches(norm, EN_HINTS);
       if (latinOnly) scoreVi += 0.25;
       if (latinOnly && enCount > 0) scoreVi -= Math.min(4, enCount * 1.7);
-
-      if (words.length >= 2) {
-        if (tokensRu >= 2 && scoreRu >= scoreVi + 1.6) {
-          const conf = Math.min(0.98, 0.58 + Math.min(0.35, (scoreRu - scoreVi) / 12));
-          return { lang: 'ru', confidence: conf, scoreRu, scoreVi, tokensRu, tokensVi };
-        }
-        if (tokensVi >= 2 && scoreVi >= scoreRu + 1.6) {
-          const conf = Math.min(0.98, 0.58 + Math.min(0.35, (scoreVi - scoreRu) / 12));
-          return { lang: 'vi', confidence: conf, scoreRu, scoreVi, tokensRu, tokensVi };
-        }
-      }
-
-      if (/[а-яё]/i.test(t) && words.length >= 2) {
-        return { lang: 'ru', confidence: 0.72, scoreRu, scoreVi, tokensRu: Math.max(tokensRu, 2), tokensVi };
-      }
-      if (viMarks && words.length >= 2) {
-        return { lang: 'vi', confidence: 0.78, scoreRu, scoreVi, tokensRu, tokensVi: Math.max(tokensVi, 2) };
-      }
-
-      if (looksUnsupportedForeign(t)) {
-        return { lang: 'unknown', confidence: 0.01, scoreRu, scoreVi: Math.min(scoreVi, 0.2), tokensRu, tokensVi: Math.min(tokensVi, 1) };
-      }
-
-      return { lang: 'unknown', confidence: 0.18, scoreRu, scoreVi, tokensRu, tokensVi };
+      if (words.length >= 2 && tokensRu >= 2 && scoreRu >= scoreVi + 1.5) return { lang: 'ru', confidence: Math.min(0.98, 0.58 + Math.min(0.35, (scoreRu - scoreVi) / 12)), scoreRu, scoreVi, tokensRu, tokensVi };
+      if (words.length >= 2 && tokensVi >= 2 && scoreVi >= scoreRu + 1.5) return { lang: 'vi', confidence: Math.min(0.98, 0.58 + Math.min(0.35, (scoreVi - scoreRu) / 12)), scoreRu, scoreVi, tokensRu, tokensVi };
+      if (/[а-яё]/i.test(t) && words.length >= 2) return { lang: 'ru', confidence: 0.72, scoreRu, scoreVi, tokensRu: Math.max(tokensRu, 2), tokensVi };
+      if (viMarks && words.length >= 2) return { lang: 'vi', confidence: 0.78, scoreRu, scoreVi, tokensRu, tokensVi: Math.max(tokensVi, 2) };
+      if (looksUnsupportedForeign(t)) return { lang: 'unknown', confidence: 0.01, scoreRu, scoreVi, tokensRu, tokensVi };
+      return { lang: 'unknown', confidence: 0.2, scoreRu, scoreVi, tokensRu, tokensVi };
     }
 
-    function updateConfidence(value) {
-      confidenceText.textContent = `Уверенность: ${Number(value || 0).toFixed(2)}`;
+    function updateConfidence(v) {
+      confidenceText.textContent = `Уверенность: ${Number(v || 0).toFixed(2)}`;
     }
 
     function isNoiseLike(text) {
       const raw = String(text || '').trim();
       if (!raw) return true;
       const words = tokenize(raw);
-      if (!words.length) return true;
-      if (raw.length <= 2) return true;
-      if (/^[\W_\d]+$/.test(raw)) return true;
-      const uniqueLetters = new Set(raw.toLowerCase().replace(/[^a-zа-яёăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/g, '').split(''));
-      if (words.length === 1 && raw.length < 4 && uniqueLetters.size <= 2) return true;
+      if (!words.length || raw.length <= 2 || /^[\W_\d]+$/.test(raw)) return true;
       return false;
     }
 
     function lastWords(text, n = 2) {
-      const w = tokenize(text);
-      return w.slice(-n);
+      const w = tokenize(text); return w.slice(-n);
     }
 
     function endsWithNonBreak(text, lang) {
@@ -521,79 +472,22 @@
       return true;
     }
 
-    function analyzeDraft() {
-      const fullText = [draftFinalText, interimBuffer].filter(Boolean).join(' ').trim();
-      const analysis = classifyRuVi(fullText || draftFinalText || interimBuffer);
+    function syncLanguageLabels(detected) {
+      recognizerText.textContent = `Распознавание: ${LANG_META[activeRecognitionLang].label} (${LANG_META[activeRecognitionLang].rec})`;
+      detectedText.textContent = detected ? `Определённый язык: ${LANG_META[detected].label}` : 'Определённый язык: unknown';
+    }
+
+    function analyzeText(text) {
+      const analysis = classifyRuVi(text);
+      lastAnalysis = analysis;
       if (analysis.lang !== 'unknown') {
         lastDetectedLang = analysis.lang;
         if (autoMode) preferredAutoLang = analysis.lang;
-        if (analysis.confidence >= 0.7) holdLanguageUntil = Date.now() + 520;
+        if (analysis.confidence >= 0.7) holdLanguageUntil = Date.now() + (movieMode ? 400 : 700);
       }
-      lastAnalysis = analysis;
       syncLanguageLabels(analysis.lang === 'unknown' ? null : analysis.lang);
       updateConfidence(analysis.confidence);
       return analysis;
-    }
-
-    function isStrongOppositeSignal(text, currentLang) {
-      const guess = classifyRuVi(text);
-      if (guess.lang === 'unknown' || guess.lang === currentLang) return null;
-      const delta = Math.abs(guess.scoreRu - guess.scoreVi);
-      const hasViMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(text || '');
-      const hasCyr = /[а-яё]/i.test(text || '');
-      if (currentLang === 'vi' && guess.lang === 'ru' && hasCyr) return guess.lang;
-      if (guess.confidence < 0.66) return null;
-      if (currentLang === 'ru' && guess.lang === 'vi' && (hasViMarks || delta >= 2.2)) return guess.lang;
-      if (currentLang === 'vi' && guess.lang === 'ru' && (hasCyr || delta >= 2.0)) return guess.lang;
-      return null;
-    }
-
-    function triggerFastAutoSwitch(nextLang, reasonText) {
-      const now = Date.now();
-      if (!autoMode || !isRunning) return;
-      if (!nextLang || nextLang === activeRecognitionLang) return;
-      if (now < switchCooldownUntil) return;
-      switchCooldownUntil = now + (movieMode ? 380 : 850);
-      pendingFastSwitch = nextLang;
-      preferredAutoLang = nextLang;
-      holdLanguageUntil = 0;
-      setStatus(reasonText || `Быстрое переключение: ${LANG_META[nextLang].label}`, true);
-      clearTimeout(restartTimer);
-      setTimeout(() => {
-        if (!isRunning) return;
-        try {
-          recognition && recognition.stop();
-        } catch {
-          startRecognitionCycle();
-        }
-      }, movieMode ? 90 : 70);
-    }
-
-    function shouldSwitchAutoLanguage() {
-      const now = Date.now();
-      if (now < holdLanguageUntil) return false;
-      if (now - lastSpeechAt < (movieMode ? 260 : 620)) return false;
-      return true;
-    }
-
-    function pickRecognitionLanguage() {
-      if (!autoMode) return manualLang;
-      const now = Date.now();
-      if (now < holdLanguageUntil && lastDetectedLang) return lastDetectedLang;
-      return preferredAutoLang || 'ru';
-    }
-
-    function flipPreferredLanguage() {
-      preferredAutoLang = preferredAutoLang === 'ru' ? 'vi' : 'ru';
-    }
-
-    function syncLanguageLabels(detected) {
-      recognizerText.textContent = `Распознавание: ${LANG_META[activeRecognitionLang].label} (${LANG_META[activeRecognitionLang].rec})`;
-      if (!detected) {
-        detectedText.textContent = 'Определённый язык: unknown';
-      } else {
-        detectedText.textContent = `Определённый язык: ${LANG_META[detected].label}`;
-      }
     }
 
     function scheduleBoundaryChecks() {
@@ -603,25 +497,68 @@
       hardBoundaryTimer = setTimeout(() => finalizeSegmentIfReady(true), HARD_BOUNDARY_MS);
     }
 
+    function maybeUseStableInterimAsFinal() {
+      if (!interimBuffer.trim()) return false;
+      if (!stableInterimText || stableInterimText !== interimBuffer.trim()) return false;
+      if ((Date.now() - stableInterimSince) < INTERIM_STABLE_MS) return false;
+      const analysis = classifyRuVi(interimBuffer.trim());
+      if (analysis.lang === 'unknown' || analysis.confidence < 0.58) return false;
+      draftFinalText = `${draftFinalText} ${interimBuffer.trim()}`.trim();
+      interimBuffer = '';
+      analyzeText(draftFinalText);
+      updateCurrentTranscript();
+      setStatus('Стабильный interim превращён в готовый сегмент', true);
+      return true;
+    }
+
     function finalizeSegmentIfReady(force = false) {
+      maybeUseStableInterimAsFinal();
       const text = draftFinalText.trim();
       if (!text) return;
-      const analysis = analyzeDraft();
-      const words = tokenize(text);
+      const analysis = analyzeText(text);
       const lang = autoMode ? analysis.lang : (analysis.lang === 'unknown' ? manualLang : analysis.lang);
-      const canTranslate = lang === 'ru' || lang === 'vi';
-
-      if (!canTranslate) {
+      if (!(lang === 'ru' || lang === 'vi')) {
         setStatus('Жду подтверждения языка…', true);
         return;
       }
-
+      const words = tokenize(text);
       const enoughForSoft = words.length >= SOFT_WORDS_MIN && words.length <= SOFT_WORDS_MAX;
       const enoughForHard = words.length >= 2 && (force || words.length >= HARD_WORDS_MAX);
       const boundaryOk = isSafeBoundary(text, lang, force || words.length >= 12);
+      if ((enoughForSoft && boundaryOk) || (enoughForHard && boundaryOk)) emitSegment(text, lang, force);
+    }
 
-      if ((enoughForSoft && boundaryOk) || (enoughForHard && boundaryOk)) {
-        emitSegment(text, lang, force);
+    function pushFeed(item) {
+      const last = feed[feed.length - 1];
+      if (last && last.text === item.text && last.translation === item.translation) return;
+      feed.push(item); saveFeed(); renderFeed();
+    }
+
+    async function translateText(text, sourceLang, serial = 0, isFinal = false) {
+      const cleaned = (text || '').trim();
+      if (!cleaned || !(sourceLang in LANG_META)) {
+        currentTranslation.textContent = sourceLang === 'unknown' ? 'Язык не подтверждён' : '';
+        return;
+      }
+      const reqId = ++requestCounter;
+      currentTranslation.textContent = isFinal ? 'Перевожу…' : 'Предварительный перевод…';
+      try {
+        const response = await fetch(WORKER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: cleaned, source: sourceLang, target: LANG_META[sourceLang].target })
+        });
+        if (!response.ok) throw new Error('worker-http-' + response.status);
+        const data = await response.json().catch(() => ({}));
+        const translation = data.translation || data.translatedText || data.result || '';
+        if (reqId !== requestCounter) return;
+        currentTranslation.textContent = translation || 'Перевод не получен';
+        if (translation && isFinal) {
+          pushFeed({ text: cleaned, translation, langLabel: LANG_META[sourceLang].label, targetLabel: LANG_META[sourceLang].targetLabel, time: formatTime(), serial });
+        }
+      } catch (e) {
+        if (reqId !== requestCounter) return;
+        currentTranslation.textContent = 'Ошибка перевода. Проверьте Worker URL и сеть.';
       }
     }
 
@@ -634,23 +571,32 @@
       translateText(cleaned, sourceLang, serial, true);
       draftFinalText = '';
       interimBuffer = '';
+      stableInterimText = '';
+      stableInterimSince = 0;
       updateCurrentTranscript();
-      scheduleBoundaryChecks();
-
-      if (autoMode && (sourceLang === 'ru' || sourceLang === 'vi')) {
-        const oppositeLang = sourceLang === 'ru' ? 'vi' : 'ru';
-        preferredAutoLang = oppositeLang;
+      clearTimeout(softBoundaryTimer);
+      clearTimeout(hardBoundaryTimer);
+      if (autoMode) {
+        preferredAutoLang = sourceLang === 'ru' ? 'vi' : 'ru';
         holdLanguageUntil = 0;
-        pendingFastSwitch = oppositeLang;
-        setTimeout(() => {
-          if (!isRunning || !autoMode) return;
-          if (activeRecognitionLang === sourceLang) {
-            triggerFastAutoSwitch(oppositeLang, movieMode
-              ? `Сегмент готов, быстро переключаюсь на ${LANG_META[oppositeLang].label}`
-              : `Фраза завершена, быстро пробую ${LANG_META[oppositeLang].label}`);
-          }
-        }, movieMode ? 120 : 40);
+        if (movieMode) {
+          setTimeout(() => {
+            if (!isRunning || !recognition) return;
+            try { recognition.stop(); } catch {}
+          }, MOVIE_SWITCH_DELAY_MS);
+        }
       }
+    }
+
+    function chooseRecognitionLang() {
+      if (!autoMode) return manualLang;
+      if (Date.now() < holdLanguageUntil && lastDetectedLang) return lastDetectedLang;
+      return preferredAutoLang || 'ru';
+    }
+
+    function scheduleRestart(delay = RESTART_DELAY_MS) {
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(() => startRecognitionCycle(), delay);
     }
 
     function createRecognition(langCode) {
@@ -658,7 +604,6 @@
         alert('На этом устройстве Web Speech API недоступен. На iPhone лучше открыть файл в Safari и запустить как PWA.');
         return null;
       }
-
       const rec = new SpeechRecognition();
       rec.lang = LANG_META[langCode].rec;
       rec.continuous = true;
@@ -666,190 +611,115 @@
       rec.maxAlternatives = 1;
 
       rec.onstart = () => {
+        diag.start += 1; updateDiag();
+        lastStartAt = Date.now();
         activeRecognitionLang = langCode;
         syncLanguageLabels(lastDetectedLang);
-        setStatus(movieMode
-          ? `Слушаю в режиме Кино: ${LANG_META[langCode].label}`
-          : `Слушаю: ${LANG_META[langCode].label}`, true);
+        setStatus(movieMode ? `Слушаю в режиме Кино: ${LANG_META[langCode].label}` : `Слушаю: ${LANG_META[langCode].label}`, true);
       };
 
       rec.onresult = (event) => {
-        const now = Date.now();
-        lastSpeechAt = now;
-        interimBuffer = '';
-
+        diag.result += 1; updateDiag();
+        lastSpeechAt = Date.now();
+        lastResultAt = Date.now();
+        let localInterim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const res = event.results[i];
           const text = (res[0]?.transcript || '').trim();
           if (!text || isNoiseLike(text)) continue;
           if (looksUnsupportedForeign(text)) {
             if (autoMode && activeRecognitionLang === 'ru') {
-              triggerFastAutoSwitch('vi', 'Похоже, русский модуль поймал чужой латинский текст, пробую вьетнамский');
-              return;
+              preferredAutoLang = 'vi';
+              setStatus('Русский модуль дал латиницу, пробую вьетнамский', true);
+              try { rec.stop(); } catch {}
             }
-            setStatus('Отклонён чужой/ложный латинский текст', true);
             continue;
           }
-
           if (res.isFinal) {
             draftFinalText = `${draftFinalText} ${text}`.trim();
           } else {
-            interimBuffer += (interimBuffer ? ' ' : '') + text;
+            localInterim += (localInterim ? ' ' : '') + text;
           }
         }
-
-        const combined = [draftFinalText, interimBuffer].filter(Boolean).join(' ').trim();
-      if (combined && looksUnsupportedForeign(combined)) {
-        currentTranscript.textContent = '';
-        currentTranslation.textContent = 'Текст отклонён: это не русский и не вьетнамский.';
-        draftFinalText = '';
-        interimBuffer = '';
-        lastAnalysis = { lang: 'unknown', confidence: 0.01, tokensRu: 0, tokensVi: 0 };
-        syncLanguageLabels(null);
-        updateConfidence(0.01);
-        if (autoMode && activeRecognitionLang === 'ru') {
-          triggerFastAutoSwitch('vi', 'Переключаюсь на вьетнамский: русский модуль дал чужой латинский текст');
+        interimBuffer = localInterim.trim();
+        if (interimBuffer && interimBuffer === stableInterimText) {
+          if (!stableInterimSince) stableInterimSince = Date.now();
+        } else {
+          stableInterimText = interimBuffer;
+          stableInterimSince = interimBuffer ? Date.now() : 0;
         }
-        return;
-      }
-        if (combined && (now - lastSpeechAt) >= 0) {
-          const analysis = analyzeDraft();
-          const strongOpposite = isStrongOppositeSignal(combined, activeRecognitionLang);
-          if (strongOpposite) {
-            triggerFastAutoSwitch(strongOpposite, `Быстрое переключение на ${LANG_META[strongOpposite].label}`);
+        const combined = [draftFinalText, interimBuffer].filter(Boolean).join(' ').trim();
+        if (combined) {
+          const analysis = analyzeText(combined);
+          if (autoMode && analysis.lang !== 'unknown' && analysis.lang !== activeRecognitionLang && analysis.confidence >= 0.72) {
+            preferredAutoLang = analysis.lang;
+            setStatus(`Обнаружен ${LANG_META[analysis.lang].label}, мягко переключаюсь`, true);
+            setTimeout(() => { try { rec.stop(); } catch {} }, movieMode ? MOVIE_SWITCH_DELAY_MS : NORMAL_SWITCH_DELAY_MS);
+            updateCurrentTranscript();
             return;
           }
-          if (analysis.lang === 'unknown' && autoMode) {
-            setStatus('Речь не подтверждена или язык неясен', true);
-          }
         }
-
         updateCurrentTranscript();
         scheduleBoundaryChecks();
-
-        const finalWords = tokenize(draftFinalText);
-        if (finalWords.length >= HARD_WORDS_MAX && isSafeBoundary(draftFinalText, lastAnalysis.lang === 'unknown' ? activeRecognitionLang : lastAnalysis.lang, true)) {
-          finalizeSegmentIfReady(true);
-        }
+        if (tokenize(draftFinalText).length >= HARD_WORDS_MAX) finalizeSegmentIfReady(true);
       };
 
       rec.onerror = (event) => {
+        diag.error += 1; updateDiag();
         const err = event.error || 'unknown';
-        if (err === 'no-speech') {
-          setStatus('Шум или тишина, речи нет', false);
-        } else if (err === 'language-not-supported') {
-          setStatus('Язык распознавания не поддерживается браузером', false);
-        } else if (err === 'not-allowed') {
-          setStatus('Нет доступа к микрофону', false);
-        } else {
-          setStatus(`Ошибка распознавания: ${err}`, false);
-        }
+        if (err === 'no-speech') setStatus('Шум или тишина, речи нет', false);
+        else if (err === 'language-not-supported') setStatus('Язык распознавания не поддерживается браузером', false);
+        else if (err === 'not-allowed') setStatus('Нет доступа к микрофону', false);
+        else setStatus(`Ошибка распознавания: ${err}`, false);
       };
 
       rec.onend = () => {
+        diag.end += 1; updateDiag();
         if (isStopping || !isRunning) {
           setStatus('Остановлено', false);
           return;
         }
-
+        maybeUseStableInterimAsFinal();
         finalizeSegmentIfReady(true);
-
-        if (pendingFastSwitch) {
-          preferredAutoLang = pendingFastSwitch;
-          pendingFastSwitch = null;
-          scheduleRestart();
-          return;
+        if (autoMode && !draftFinalText.trim() && !interimBuffer.trim() && (Date.now() - lastSpeechAt) > (movieMode ? 550 : 1100)) {
+          preferredAutoLang = preferredAutoLang === 'ru' ? 'vi' : 'ru';
         }
-
-        if (autoMode && shouldSwitchAutoLanguage()) {
-          flipPreferredLanguage();
-        }
-        scheduleRestart();
+        scheduleRestart(movieMode ? 140 : RESTART_DELAY_MS);
       };
 
       return rec;
     }
 
-    function scheduleRestart() {
-      clearTimeout(restartTimer);
-      restartTimer = setTimeout(() => {
-        startRecognitionCycle();
-      }, movieMode ? 90 : 180);
-    }
-
     function startRecognitionCycle() {
       if (!isRunning) return;
-      try {
-        if (recognition) {
-          recognition.onend = null;
-          recognition.stop();
-        }
-      } catch {}
-
-      const lang = pickRecognitionLanguage();
+      if (recognition) {
+        try { recognition.onend = null; recognition.stop(); } catch {}
+      }
+      const lang = chooseRecognitionLang();
       recognition = createRecognition(lang);
       if (!recognition) return;
-      try {
-        recognition.start();
-      } catch {
-        scheduleRestart();
-      }
+      try { recognition.start(); } catch { scheduleRestart(450); }
     }
 
-    async function translateText(text, sourceLang, serial = 0, isFinal = false) {
-      const cleaned = (text || '').trim();
-      if (!cleaned || !(sourceLang in LANG_META)) {
-        currentTranslation.textContent = sourceLang === 'unknown' ? 'Язык не подтверждён' : '';
-        return;
-      }
-
-      const reqId = ++requestCounter;
-      currentTranslation.textContent = isFinal ? 'Перевожу…' : 'Предварительный перевод…';
-
-      const targetLang = LANG_META[sourceLang].target;
-      const source = sourceLang;
-      const target = targetLang;
-
-      try {
-        const response = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: cleaned, source, target })
-        });
-
-        if (!response.ok) throw new Error('worker-http-' + response.status);
-        const data = await response.json().catch(() => ({}));
-        const translation = data.translation || data.translatedText || data.result || '';
-
-        if (reqId !== requestCounter) return;
-
-        currentTranslation.textContent = translation || 'Перевод не получен';
-
-        if (translation && isFinal) {
-          pushFeed({
-            text: cleaned,
-            translation,
-            lang: sourceLang,
-            langLabel: LANG_META[sourceLang].label,
-            targetLabel: LANG_META[sourceLang].targetLabel,
-            time: formatTime(),
-            is_final: true,
-            confidence: Number(lastAnalysis.confidence || 0).toFixed(2),
-            serial
-          });
+    function startHealthMonitor() {
+      clearInterval(healthTimer);
+      healthTimer = setInterval(() => {
+        if (!isRunning) return;
+        const now = Date.now();
+        if (!lastStartAt) return;
+        if ((now - lastStartAt) > 5000 && (now - lastResultAt) > 5000 && !draftFinalText && !interimBuffer) {
+          setStatus('Нет результатов 5 сек, мягкий перезапуск…', true);
+          try { recognition && recognition.stop(); } catch { scheduleRestart(350); }
+        } else if (interimBuffer && stableInterimText === interimBuffer && (now - stableInterimSince) > INTERIM_STABLE_MS + 350) {
+          maybeUseStableInterimAsFinal();
+          finalizeSegmentIfReady(false);
         }
-      } catch (error) {
-        if (reqId !== requestCounter) return;
-        currentTranslation.textContent = 'Ошибка перевода. Проверьте Worker URL и сеть.';
-      }
+      }, 900);
     }
 
-    function pushFeed(item) {
-      const last = feed[feed.length - 1];
-      if (last && last.text === item.text && last.translation === item.translation) return;
-      feed.push(item);
-      saveFeed();
-      renderFeed();
+    function stopHealthMonitor() {
+      clearInterval(healthTimer);
+      healthTimer = null;
     }
 
     function startApp() {
@@ -859,75 +729,30 @@
       clearCurrent();
       setStatus('Запуск микрофона…', true);
       startRecognitionCycle();
-
-      clearInterval(autoSwitchTimer);
-      autoSwitchTimer = setInterval(() => {
-        if (!isRunning || !autoMode) return;
-        if (shouldSwitchAutoLanguage()) {
-          flipPreferredLanguage();
-          if (recognition) {
-            try { recognition.stop(); } catch {}
-          }
-        }
-      }, 700);
+      startHealthMonitor();
     }
 
     function stopApp() {
       isRunning = false;
       isStopping = true;
-      clearInterval(autoSwitchTimer);
       clearTimeout(restartTimer);
-      try {
-        recognition && recognition.stop();
-      } catch {}
+      stopHealthMonitor();
+      try { recognition && recognition.stop(); } catch {}
       setStatus('Остановлено', false);
     }
 
     startBtn.addEventListener('click', startApp);
     stopBtn.addEventListener('click', stopApp);
-
-    modeAutoBtn.addEventListener('click', () => {
-      autoMode = true;
-      setButtons();
-      preferredAutoLang = lastDetectedLang && lastDetectedLang !== 'unknown' ? lastDetectedLang : 'ru';
-      if (isRunning) startRecognitionCycle();
-    });
-
-    modeManualBtn.addEventListener('click', () => {
-      autoMode = false;
-      setButtons();
-      if (isRunning) startRecognitionCycle();
-    });
-
-    langRuBtn.addEventListener('click', () => {
-      manualLang = 'ru';
-      setButtons();
-      if (isRunning && !autoMode) startRecognitionCycle();
-    });
-
-    langViBtn.addEventListener('click', () => {
-      manualLang = 'vi';
-      setButtons();
-      if (isRunning && !autoMode) startRecognitionCycle();
-    });
-
-    movieModeBtn.addEventListener('click', () => {
-      movieMode = !movieMode;
-      setButtons();
-    });
-
-    clearCurrentBtn.addEventListener('click', () => {
-      clearCurrent();
-      requestCounter++;
-    });
-
-    clearFeedBtn.addEventListener('click', () => {
-      feed = [];
-      saveFeed();
-      renderFeed();
-    });
+    modeAutoBtn.addEventListener('click', () => { autoMode = true; preferredAutoLang = lastDetectedLang && lastDetectedLang !== 'unknown' ? lastDetectedLang : 'ru'; setButtons(); if (isRunning) startRecognitionCycle(); });
+    modeManualBtn.addEventListener('click', () => { autoMode = false; setButtons(); if (isRunning) startRecognitionCycle(); });
+    langRuBtn.addEventListener('click', () => { manualLang = 'ru'; setButtons(); if (isRunning && !autoMode) startRecognitionCycle(); });
+    langViBtn.addEventListener('click', () => { manualLang = 'vi'; setButtons(); if (isRunning && !autoMode) startRecognitionCycle(); });
+    movieModeBtn.addEventListener('click', () => { movieMode = !movieMode; setButtons(); });
+    clearCurrentBtn.addEventListener('click', () => { clearCurrent(); requestCounter++; });
+    clearFeedBtn.addEventListener('click', () => { feed = []; saveFeed(); renderFeed(); });
 
     setButtons();
+    updateDiag();
     loadFeed();
     syncLanguageLabels(null);
 
@@ -936,9 +761,7 @@
         const swCode = `
           const CACHE = 'translator-cache-${APP_VERSION}';
           self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']))));
-          self.addEventListener('activate', e => e.waitUntil(
-            caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-          ));
+          self.addEventListener('activate', e => e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))));
           self.addEventListener('fetch', e => {
             if (e.request.method !== 'GET') return;
             e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
