@@ -2,454 +2,690 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Переводчик фильма RU ↔ VI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>RU ↔ VI Voice Translator</title>
   <style>
     :root {
-      --bg: #071224;
-      --bg2: #0b1830;
-      --card: rgba(19, 31, 58, 0.96);
-      --card2: rgba(28, 42, 74, 0.96);
-      --text: #f4f7ff;
-      --muted: #a9b6d3;
-      --line: rgba(143, 171, 228, 0.18);
-      --blue: #3d78ff;
-      --blue-soft: #213e80;
-      --red: #ff3d47;
-      --green: #1dcf8b;
-      --amber: #ffc857;
-      --shadow: 0 16px 40px rgba(0,0,0,.28);
-      --radius: 28px;
-      --safe-top: max(18px, env(safe-area-inset-top));
-      --safe-bottom: max(18px, env(safe-area-inset-bottom));
-      --safe-left: max(16px, env(safe-area-inset-left));
-      --safe-right: max(16px, env(safe-area-inset-right));
+      --bg: #08111f;
+      --panel: rgba(15, 23, 42, 0.78);
+      --panel-2: rgba(30, 41, 59, 0.72);
+      --line: rgba(148, 163, 184, 0.18);
+      --text: #e5eef9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --danger: #fb7185;
+      --warn: #f59e0b;
+      --shadow: 0 18px 60px rgba(0,0,0,.35);
+      --radius: 22px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
-
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body {
-      margin: 0;
-      min-height: 100%;
-      background:
-        radial-gradient(circle at top, #12356d 0%, #091528 38%, #040b17 100%);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-    }
-
-    body {
-      padding: var(--safe-top) var(--safe-right) calc(112px + var(--safe-bottom)) var(--safe-left);
-    }
-
+    html, body { margin: 0; background: radial-gradient(circle at top, #102448 0, #08111f 46%, #050b14 100%); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
+    body { min-height: 100vh; }
     .app {
-      width: 100%;
-      max-width: 440px;
+      max-width: 880px;
       margin: 0 auto;
-    }
-
-    .hero, .panel, .card, .feed-card, .history-card {
-      background: linear-gradient(180deg, var(--card2), var(--card));
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-
-    .hero {
-      padding: 24px 22px;
-      margin-bottom: 16px;
-    }
-
-    .version {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: .02em;
-      margin-bottom: 14px;
-    }
-
-    h1 {
-      font-size: clamp(24px, 5.6vw, 38px);
-      line-height: 1.05;
-      margin: 0 0 10px;
-      letter-spacing: -0.03em;
-    }
-
-    .subtitle {
-      font-size: clamp(18px, 3.9vw, 24px);
-      line-height: 1.22;
-      color: var(--muted);
-      margin: 0 0 18px;
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 56px;
-      padding: 0 18px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid var(--line);
-      font-size: 18px;
-      font-weight: 800;
-    }
-    .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px rgba(255,61,71,.16); }
-
-    .tabs {
-      position: sticky;
-      top: calc(var(--safe-top) + 2px);
-      z-index: 20;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      padding: 10px;
-      margin-bottom: 16px;
-      border-radius: 26px;
-      background: rgba(5, 12, 24, .88);
-      border: 1px solid rgba(143, 171, 228, .14);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-    }
-
-    .tab-btn {
-      border: 0;
-      min-height: 58px;
-      border-radius: 20px;
-      background: rgba(255,255,255,.05);
-      color: var(--muted);
-      font-size: 18px;
-      font-weight: 900;
-      letter-spacing: -.01em;
-      padding: 0 12px;
-    }
-    .tab-btn.active {
-      background: linear-gradient(180deg, #1d4db6, #173a89);
-      color: #fff;
-      box-shadow: inset 0 0 0 1px rgba(137,179,255,.45);
-    }
-
-    .page { display: none; }
-    .page.active { display: block; }
-
-    .panel {
-      padding: 18px;
-      margin-bottom: 16px;
-    }
-
-    .btn {
-      width: 100%;
-      border: 0;
-      min-height: 78px;
-      border-radius: 26px;
-      font-size: clamp(22px, 5.2vw, 34px);
-      font-weight: 900;
-      letter-spacing: -.02em;
-      color: #fff;
-      margin-bottom: 14px;
-    }
-    .btn-primary { background: linear-gradient(180deg, #3d78ff, #2b5cd7); }
-    .btn-danger { background: linear-gradient(180deg, #ff3d47, #df212b); }
-    .btn-dark { background: rgba(255,255,255,.06); border: 1px solid var(--line); }
-
-    .section-title {
-      font-size: 19px;
-      color: var(--muted);
-      margin: 0 0 14px;
-      font-weight: 800;
-    }
-
-    .lang-grid {
-      display: grid;
-      gap: 12px;
-    }
-    .choice {
-      width: 100%;
-      text-align: left;
-      min-height: 82px;
-      border-radius: 24px;
-      padding: 0 20px;
-      border: 1px solid transparent;
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      font-size: clamp(22px, 5.4vw, 34px);
-      font-weight: 900;
-    }
-    .choice.selected {
-      background: rgba(61,120,255,.22);
-      border-color: rgba(146,185,255,.75);
-      box-shadow: inset 0 0 0 1px rgba(146,185,255,.2);
-    }
-
-    .important {
-      display: grid;
-      gap: 12px;
-    }
-    .important-row {
-      border-radius: 22px;
-      padding: 16px 18px;
-      background: rgba(255,255,255,.05);
-      border: 1px solid var(--line);
-    }
-    .important-label {
-      display: block;
-      font-size: 15px;
-      color: var(--muted);
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-    .important-value {
-      font-size: clamp(23px, 5vw, 34px);
-      line-height: 1.18;
-      font-weight: 900;
-      letter-spacing: -.02em;
-    }
-
-    .feed {
+      min-height: 100vh;
+      padding: calc(16px + var(--safe-top)) 14px calc(20px + var(--safe-bottom));
       display: grid;
       gap: 14px;
     }
-    .feed-card {
-      padding: 18px;
+    .card {
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
-    .meta {
+    .hero {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      background: linear-gradient(180deg, rgba(56,189,248,.12), rgba(34,197,94,.08));
+    }
+    .topline {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      color: var(--muted);
-      font-size: 16px;
-      font-weight: 800;
-      margin-bottom: 14px;
-    }
-    .original {
-      font-size: clamp(23px, 4.6vw, 30px);
-      line-height: 1.25;
-      margin-bottom: 14px;
-      color: #d8e2fb;
-    }
-    .translation {
-      font-size: clamp(30px, 6vw, 42px);
-      line-height: 1.14;
-      font-weight: 900;
-      letter-spacing: -.02em;
-      margin-bottom: 14px;
-    }
-    .tags {
-      display: flex;
+      gap: 10px;
       flex-wrap: wrap;
-      gap: 8px;
     }
-    .tag {
-      font-size: 13px;
+    .brand {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+    .version {
+      font-size: 12px;
       color: var(--muted);
-      padding: 8px 10px;
+      border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(255,255,255,.06);
+      padding: 6px 10px;
+      background: rgba(255,255,255,.04);
+    }
+    .subtitle { color: var(--muted); line-height: 1.35; font-size: 14px; }
+    .statusbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pillbox {
+      background: rgba(255,255,255,.04);
       border: 1px solid var(--line);
-      font-weight: 700;
+      border-radius: 18px;
+      padding: 12px 14px;
     }
-
-    .history-card {
-      padding: 18px;
-      margin-bottom: 14px;
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .value { font-weight: 700; font-size: 15px; }
+    .toolbar {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
     }
-    .history-title {
-      font-size: 22px;
-      font-weight: 900;
-      margin-bottom: 10px;
+    .toolbar-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
-    .history-text {
-      font-size: 18px;
-      line-height: 1.35;
-      color: var(--muted);
-    }
-
-    .tech-list { display: grid; gap: 12px; }
-    .tech-item {
-      background: rgba(255,255,255,.05);
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      padding: 16px 18px;
-    }
-    .tech-item strong {
-      display: block;
-      font-size: 17px;
-      margin-bottom: 6px;
-    }
-    .tech-item span {
-      display: block;
-      font-size: 16px;
-      line-height: 1.35;
-      color: var(--muted);
-      word-break: break-word;
-    }
-
-    .bottom-nav {
-      position: fixed;
-      left: max(14px, env(safe-area-inset-left));
-      right: max(14px, env(safe-area-inset-right));
-      bottom: max(12px, env(safe-area-inset-bottom));
-      z-index: 50;
+    .button-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      padding: 10px;
-      border-radius: 28px;
-      background: rgba(3, 8, 18, .94);
-      border: 1px solid rgba(143,171,228,.18);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      max-width: 440px;
-      margin: 0 auto;
     }
-    .bottom-nav .tab-btn { min-height: 66px; font-size: 17px; }
-
-    @media (min-width: 430px) {
-      body { padding-bottom: calc(118px + var(--safe-bottom)); }
+    button, select {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      border-radius: 18px;
+      min-height: 52px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 700;
+      width: 100%;
+    }
+    button.primary { background: linear-gradient(180deg, rgba(56,189,248,.25), rgba(56,189,248,.12)); }
+    button.good { background: linear-gradient(180deg, rgba(34,197,94,.22), rgba(34,197,94,.10)); }
+    button.warn { background: linear-gradient(180deg, rgba(245,158,11,.20), rgba(245,158,11,.08)); }
+    button.danger { background: linear-gradient(180deg, rgba(251,113,133,.20), rgba(251,113,133,.08)); }
+    button:disabled { opacity: .45; }
+    .mic-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #64748b;
+      box-shadow: 0 0 0 0 rgba(34,197,94,.6);
+    }
+    .dot.live {
+      background: var(--accent-2);
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+      70% { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+    .feed-wrap { padding: 0 14px 14px; }
+    .feed-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 6px 2px 10px;
+    }
+    .feed {
+      display: grid;
+      gap: 10px;
+      max-height: 54vh;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .bubble {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 18px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .bubble-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .dir {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+    }
+    .time { font-size: 12px; color: var(--muted); }
+    .segment {
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(148,163,184,.12);
+    }
+    .segment .small { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .segment .text { white-space: pre-wrap; word-break: break-word; line-height: 1.42; }
+    .footer-note {
+      padding: 12px 14px 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .logline { font-size: 13px; color: var(--muted); }
+    .empty {
+      padding: 24px 14px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 18px;
+    }
+    @media (max-width: 680px) {
+      .statusbar, .toolbar-grid, .button-row { grid-template-columns: 1fr; }
+      .app { padding-left: 10px; padding-right: 10px; }
+      .feed { max-height: none; }
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <section class="hero">
-      <div class="version">Версия: translator-v2026.04.17-02 • test-2026.04.17-02</div>
-      <h1>Переводчик фильма RU ↔ VI</h1>
-      <p class="subtitle">Интерфейс под iPhone 16. Крупный экран, вкладки, новые реплики сверху.</p>
-      <div class="status-pill"><span class="dot"></span>Готов к прослушиванию</div>
+    <section class="card hero">
+      <div class="topline">
+        <div class="brand">RU ↔ VI Voice Translator</div>
+        <div class="version" id="versionBadge">v2.1-auto-ru-vi</div>
+      </div>
+      <div class="subtitle">
+        Архитектура: автоцикл распознавания, автоопределение RU/VI по тексту, транскрибация и перевод в противоположный язык.
+      </div>
+      <div class="statusbar">
+        <div class="pillbox">
+          <div class="label">Статус</div>
+          <div class="value" id="statusText">Готово к запуску</div>
+        </div>
+        <div class="pillbox">
+          <div class="label">Режим распознавания</div>
+          <div class="value" id="modeText">AUTO: RU → VI / VI → RU</div>
+        </div>
+      </div>
     </section>
 
-    <nav class="tabs" aria-label="Верхние вкладки">
-      <button class="tab-btn active" data-tab="translate">Перевод</button>
-      <button class="tab-btn" data-tab="history">История</button>
-      <button class="tab-btn" data-tab="tech">Техника</button>
-    </nav>
+    <section class="card toolbar">
+      <div class="toolbar-grid">
+        <div>
+          <div class="label">Cloudflare Worker</div>
+          <input id="workerUrl" type="text" style="width:100%;min-height:52px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);padding:12px 14px;font-size:14px;" value="https://square-cloud-e319.tofasamara.workers.dev" />
+        </div>
+        <div>
+          <div class="label">Авто-цикл языка для SpeechRecognition</div>
+          <select id="cycleSelect">
+            <option value="ru-RU,vi-VN">Сначала RU, затем VI</option>
+            <option value="vi-VN,ru-RU">Сначала VI, затем RU</option>
+          </select>
+        </div>
+      </div>
 
-    <main>
-      <section class="page active" id="translate">
-        <div class="panel">
-          <button class="btn btn-primary">🎤 Слушать</button>
-          <button class="btn btn-danger">⏹ Стоп</button>
-          <button class="btn btn-dark">Очистить ленту</button>
-          <button class="btn btn-dark">Обновить приложение</button>
-        </div>
+      <div class="button-row">
+        <button id="startBtn" class="primary">🎙️ Старт</button>
+        <button id="stopBtn" class="warn" disabled>⏹️ Стоп</button>
+        <button id="clearFeedBtn" class="danger">🧹 Очистить ленту</button>
+      </div>
 
-        <div class="panel">
-          <h2 class="section-title">Язык оригинала</h2>
-          <div class="lang-grid">
-            <button class="choice selected">Вьетнамский</button>
-            <button class="choice">Русский</button>
-            <button class="choice">Авто</button>
-          </div>
-        </div>
+      <div class="button-row">
+        <button id="clearHistoryBtn">🗑️ Удалить историю</button>
+        <button id="testButtonsBtn">🧪 Тест кнопок</button>
+        <button id="saveConfigBtn" class="good">💾 Сохранить</button>
+      </div>
 
-        <div class="panel">
-          <h2 class="section-title">Язык перевода</h2>
-          <div class="lang-grid">
-            <button class="choice selected">Русский</button>
-            <button class="choice">Вьетнамский</button>
-          </div>
-        </div>
+      <div class="mic-live">
+        <span class="dot" id="liveDot"></span>
+        <span id="liveText">Микрофон выключен</span>
+      </div>
+      <div class="logline" id="logText">Лог: ожидание действий.</div>
+    </section>
 
-        <div class="panel">
-          <h2 class="section-title">Важное на экране</h2>
-          <div class="important">
-            <div class="important-row">
-              <span class="important-label">Сейчас слышно</span>
-              <div class="important-value">Вьетнамская речь</div>
-            </div>
-            <div class="important-row">
-              <span class="important-label">Последний перевод</span>
-              <div class="important-value">Мы начинаем прямо сейчас.</div>
-            </div>
-          </div>
+    <section class="card">
+      <div class="feed-wrap">
+        <div class="feed-head">
+          <div style="font-weight:800">Лента диалога</div>
+          <div class="time" id="historyMeta">0 записей</div>
         </div>
-
-        <div class="feed">
-          <article class="feed-card">
-            <div class="meta"><span>🇻🇳 Вьетнамский • 01:23</span><span>Новая реплика</span></div>
-            <div class="original">Chúng ta bắt đầu ngay bây giờ.</div>
-            <div class="translation">Мы начинаем прямо сейчас.</div>
-            <div class="tags"><span class="tag">Сборка 02</span><span class="tag">test-2026.04.17-02</span><span class="tag">square-cloud-e319</span></div>
-          </article>
-
-          <article class="feed-card">
-            <div class="meta"><span>🇷🇺 Русский • 01:21</span><span>Ранее</span></div>
-            <div class="original">Подожди секунду, я не понял.</div>
-            <div class="translation">Đợi một giây, tôi chưa hiểu.</div>
-            <div class="tags"><span class="tag">Крупный шрифт</span><span class="tag">iPhone 16</span></div>
-          </article>
-        </div>
-      </section>
-
-      <section class="page" id="history">
-        <div class="history-card">
-          <div class="history-title">Быстрый просмотр прошлых реплик</div>
-          <div class="history-text">Эта вкладка удобна, когда нужно вернуться к предыдущим строкам фильма, не мешая основному экрану перевода.</div>
-        </div>
-        <div class="history-card">
-          <div class="meta"><span>01:17</span><span>Сцена 4</span></div>
-          <div class="original">Tôi không muốn quay lại đó.</div>
-          <div class="translation">Я не хочу туда возвращаться.</div>
-        </div>
-        <div class="history-card">
-          <div class="meta"><span>01:12</span><span>Сцена 4</span></div>
-          <div class="original">Стой, сначала послушай меня.</div>
-          <div class="translation">Đợi đã, trước hết hãy nghe tôi.</div>
-        </div>
-      </section>
-
-      <section class="page" id="tech">
-        <div class="panel">
-          <h2 class="section-title">Техническая панель</h2>
-          <div class="tech-list">
-            <div class="tech-item">
-              <strong>Worker URL</strong>
-              <span>https://square-cloud-e319.tofasamara.workers.dev</span>
-            </div>
-            <div class="tech-item">
-              <strong>Версия сборки</strong>
-              <span>translator-v2026.04.17-02</span>
-            </div>
-            <div class="tech-item">
-              <strong>Тестовый маркер</strong>
-              <span>test-2026.04.17-02</span>
-            </div>
-            <div class="tech-item">
-              <strong>Экран</strong>
-              <span>Оптимизировано под iPhone 16: крупные кнопки, нижняя навигация, безопасные отступы, вкладки для быстрого переключения.</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+        <div id="feed" class="feed"></div>
+      </div>
+      <div class="footer-note">
+        Важно: браузерный Web Speech API не даёт идеального настоящего мультиязычного ASR в одном потоке. В этом index используется практичная архитектура: циклический запуск RU/VI + автоопределение языка по тексту + перевод на противоположный язык.
+      </div>
+    </section>
   </div>
 
-  <nav class="bottom-nav" aria-label="Нижние вкладки">
-    <button class="tab-btn active" data-tab="translate">Перевод</button>
-    <button class="tab-btn" data-tab="history">История</button>
-    <button class="tab-btn" data-tab="tech">Техника</button>
-  </nav>
-
   <script>
-    const buttons = document.querySelectorAll('[data-tab]');
-    const pages = document.querySelectorAll('.page');
+    const APP_VERSION = 'v2.1-auto-ru-vi';
+    const STORAGE_KEY = 'translator_ru_vi_history_v2_1';
+    const CONFIG_KEY = 'translator_ru_vi_config_v2_1';
 
-    function activateTab(tab) {
-      buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
-      pages.forEach(page => page.classList.toggle('active', page.id === tab));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    const els = {
+      versionBadge: document.getElementById('versionBadge'),
+      statusText: document.getElementById('statusText'),
+      modeText: document.getElementById('modeText'),
+      workerUrl: document.getElementById('workerUrl'),
+      cycleSelect: document.getElementById('cycleSelect'),
+      startBtn: document.getElementById('startBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      clearFeedBtn: document.getElementById('clearFeedBtn'),
+      clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+      testButtonsBtn: document.getElementById('testButtonsBtn'),
+      saveConfigBtn: document.getElementById('saveConfigBtn'),
+      liveDot: document.getElementById('liveDot'),
+      liveText: document.getElementById('liveText'),
+      logText: document.getElementById('logText'),
+      feed: document.getElementById('feed'),
+      historyMeta: document.getElementById('historyMeta'),
+    };
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const state = {
+      isListening: false,
+      recognition: null,
+      cycleLangs: ['ru-RU', 'vi-VN'],
+      currentCycleIndex: 0,
+      history: [],
+      manualStop: false,
+      isBusyTranslating: false,
+      pendingRestart: null,
+      lastDetectedLanguage: null,
+      supportsRecognition: !!SpeechRecognition,
+    };
+
+    function setStatus(text) { els.statusText.textContent = text; }
+    function setLog(text) { els.logText.textContent = 'Лог: ' + text; }
+    function setLive(active, text) {
+      els.liveDot.classList.toggle('live', !!active);
+      els.liveText.textContent = text;
+    }
+    function updateButtons() {
+      els.startBtn.disabled = !state.supportsRecognition || state.isListening;
+      els.stopBtn.disabled = !state.isListening;
+      els.clearFeedBtn.disabled = state.history.length === 0;
+      els.clearHistoryBtn.disabled = state.history.length === 0;
     }
 
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+    function saveConfig() {
+      const data = {
+        workerUrl: els.workerUrl.value.trim(),
+        cycleSelect: els.cycleSelect.value,
+        version: APP_VERSION,
+      };
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(data));
+      setLog('Настройки сохранены');
+      setStatus('Настройки сохранены');
+    }
+
+    function loadConfig() {
+      try {
+        const cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+        if (cfg.workerUrl) els.workerUrl.value = cfg.workerUrl;
+        if (cfg.cycleSelect) els.cycleSelect.value = cfg.cycleSelect;
+      } catch {}
+      applyCycleConfig();
+    }
+
+    function applyCycleConfig() {
+      state.cycleLangs = (els.cycleSelect.value || 'ru-RU,vi-VN').split(',').map(v => v.trim()).filter(Boolean);
+      els.modeText.textContent = 'AUTO: RU → VI / VI → RU';
+    }
+
+    function saveHistory() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history));
+      updateButtons();
+      updateHistoryMeta();
+    }
+
+    function loadHistory() {
+      try {
+        state.history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      } catch {
+        state.history = [];
+      }
+      renderHistory();
+      updateButtons();
+      updateHistoryMeta();
+    }
+
+    function updateHistoryMeta() {
+      els.historyMeta.textContent = `${state.history.length} ${pluralize(state.history.length, ['запись', 'записи', 'записей'])}`;
+    }
+
+    function pluralize(n, forms) {
+      const m10 = n % 10, m100 = n % 100;
+      if (m10 === 1 && m100 !== 11) return forms[0];
+      if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return forms[1];
+      return forms[2];
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatTime(ts) {
+      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function renderHistory() {
+      if (!state.history.length) {
+        els.feed.innerHTML = '<div class="empty">Лента пустая. Нажмите «Старт», скажите фразу на русском или вьетнамском.</div>';
+        return;
+      }
+      els.feed.innerHTML = state.history.slice().reverse().map(item => `
+        <article class="bubble">
+          <div class="bubble-head">
+            <div class="dir">${escapeHtml(item.direction)}</div>
+            <div class="time">${formatTime(item.ts)}</div>
+          </div>
+          <div class="segment">
+            <div class="small">Транскрибация (${escapeHtml(item.sourceLangLabel)})</div>
+            <div class="text">${escapeHtml(item.sourceText)}</div>
+          </div>
+          <div class="segment">
+            <div class="small">Перевод (${escapeHtml(item.targetLangLabel)})</div>
+            <div class="text">${escapeHtml(item.translatedText)}</div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function appendEntry(entry) {
+      state.history.push(entry);
+      saveHistory();
+      renderHistory();
+      requestAnimationFrame(() => {
+        els.feed.scrollTop = 0;
+      });
+    }
+
+    function clearFeedAndHistory() {
+      state.history = [];
+      saveHistory();
+      renderHistory();
+      setLog('Лента и история очищены');
+      setStatus('История очищена');
+    }
+
+    function clearHistoryOnly() {
+      state.history = [];
+      localStorage.removeItem(STORAGE_KEY);
+      renderHistory();
+      updateButtons();
+      updateHistoryMeta();
+      setLog('История удалена из localStorage');
+      setStatus('История удалена');
+    }
+
+    function detectLanguage(text) {
+      const s = String(text || '').trim();
+      const lower = s.toLowerCase();
+      const cyrillic = (s.match(/[А-Яа-яЁё]/g) || []).length;
+      const vietnameseMarks = (s.match(/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/gi) || []).length;
+      const latin = (s.match(/[A-Za-z]/g) || []).length;
+      const vnWords = ['xin chào','cảm ơn','không','được','tôi','bạn','muốn','đi','ăn','uống','bao nhiêu','hôm nay'];
+      const ruWords = ['привет','спасибо','пожалуйста','как','что','где','сегодня','можно','нужно','хочу'];
+      const vnHits = vnWords.reduce((acc, w) => acc + (lower.includes(w) ? 1 : 0), 0);
+      const ruHits = ruWords.reduce((acc, w) => acc + (lower.includes(w) ? 1 : 0), 0);
+
+      if (cyrillic > 1 || ruHits > vnHits + 1) return 'ru';
+      if (vietnameseMarks > 0 || vnHits > ruHits) return 'vi';
+      if (latin > 0 && state.lastDetectedLanguage) return state.lastDetectedLanguage;
+      return state.lastDetectedLanguage || 'ru';
+    }
+
+    function getDirection(lang) {
+      if (lang === 'ru') {
+        return {
+          sourceLang: 'ru',
+          targetLang: 'vi',
+          sourceLangLabel: 'RU',
+          targetLangLabel: 'VI',
+          direction: 'RU → VI'
+        };
+      }
+      return {
+        sourceLang: 'vi',
+        targetLang: 'ru',
+        sourceLangLabel: 'VI',
+        targetLangLabel: 'RU',
+        direction: 'VI → RU'
+      };
+    }
+
+    async function translateText(text, sourceLang, targetLang) {
+      const url = els.workerUrl.value.trim();
+      if (!url) throw new Error('Не указан Worker URL');
+
+      const payloads = [
+        { text, source: sourceLang, target: targetLang },
+        { text, source_lang: sourceLang, target_lang: targetLang },
+        { q: text, source: sourceLang, target: targetLang },
+      ];
+
+      let lastError = null;
+      for (const payload of payloads) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json().catch(() => ({}));
+          const translated = data.translatedText || data.translation || data.translated || data.result || data.text || '';
+          if (translated) return translated;
+          throw new Error('Пустой ответ от переводчика');
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError || new Error('Ошибка перевода');
+    }
+
+    function nextCycleLanguage() {
+      const lang = state.cycleLangs[state.currentCycleIndex] || 'ru-RU';
+      state.currentCycleIndex = (state.currentCycleIndex + 1) % state.cycleLangs.length;
+      return lang;
+    }
+
+    function stopRecognitionInstance() {
+      if (state.recognition) {
+        try { state.recognition.onresult = null; } catch {}
+        try { state.recognition.onerror = null; } catch {}
+        try { state.recognition.onend = null; } catch {}
+        try { state.recognition.stop(); } catch {}
+      }
+      state.recognition = null;
+    }
+
+    function scheduleRestart(delay = 220) {
+      clearTimeout(state.pendingRestart);
+      if (!state.isListening || state.manualStop) return;
+      state.pendingRestart = setTimeout(() => {
+        startRecognitionCycle();
+      }, delay);
+    }
+
+    function startRecognitionCycle() {
+      if (!state.supportsRecognition || !state.isListening || state.manualStop) return;
+      stopRecognitionInstance();
+
+      const rec = new SpeechRecognition();
+      const activeLang = nextCycleLanguage();
+      state.recognition = rec;
+      rec.lang = activeLang;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.continuous = false;
+
+      let finalText = '';
+      let interimText = '';
+
+      rec.onstart = () => {
+        setLive(true, `Микрофон активен · SpeechRecognition: ${activeLang}`);
+        setStatus(`Слушаю (${activeLang})`);
+        setLog(`Запуск цикла распознавания: ${activeLang}`);
+      };
+
+      rec.onresult = async (event) => {
+        interimText = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript || '';
+          if (event.results[i].isFinal) finalText += transcript + ' ';
+          else interimText += transcript + ' ';
+        }
+        const preview = (finalText || interimText || '').trim();
+        if (preview) setStatus(`Распознано: ${preview.slice(0, 80)}`);
+      };
+
+      rec.onerror = (event) => {
+        const err = event?.error || 'unknown';
+        setLog(`Ошибка распознавания: ${err}`);
+        if (err === 'not-allowed') {
+          setStatus('Нет доступа к микрофону');
+          setLive(false, 'Доступ к микрофону отклонён');
+          stopAllListening(true);
+          return;
+        }
+        if (err === 'audio-capture') {
+          setStatus('Микрофон не найден');
+        }
+      };
+
+      rec.onend = async () => {
+        const text = (finalText || '').trim();
+        if (text && !state.isBusyTranslating) {
+          state.isBusyTranslating = true;
+          try {
+            const detected = detectLanguage(text);
+            state.lastDetectedLanguage = detected;
+            const dir = getDirection(detected);
+            setStatus(`Перевод ${dir.direction}...`);
+            setLog(`Транскрибация готова, определён язык: ${dir.sourceLangLabel}`);
+            const translatedText = await translateText(text, dir.sourceLang, dir.targetLang);
+            appendEntry({
+              ts: Date.now(),
+              direction: dir.direction,
+              sourceLangLabel: dir.sourceLangLabel,
+              targetLangLabel: dir.targetLangLabel,
+              sourceText: text,
+              translatedText: translatedText,
+            });
+            setStatus(`Готово: ${dir.direction}`);
+            setLog(`Добавлена запись: ${dir.direction}`);
+          } catch (err) {
+            console.error(err);
+            setStatus('Ошибка перевода');
+            setLog('Ошибка перевода: ' + (err.message || err));
+          } finally {
+            state.isBusyTranslating = false;
+            scheduleRestart(380);
+          }
+        } else {
+          scheduleRestart(220);
+        }
+      };
+
+      try {
+        rec.start();
+      } catch (err) {
+        setLog('Не удалось запустить распознавание: ' + (err.message || err));
+        scheduleRestart(500);
+      }
+    }
+
+    function stopAllListening(fromError = false) {
+      state.manualStop = true;
+      state.isListening = false;
+      clearTimeout(state.pendingRestart);
+      stopRecognitionInstance();
+      setLive(false, fromError ? 'Остановлено из-за ошибки' : 'Микрофон выключен');
+      if (!fromError) setStatus('Прослушивание остановлено');
+      updateButtons();
+    }
+
+    async function startAllListening() {
+      if (!state.supportsRecognition) {
+        setStatus('SpeechRecognition не поддерживается');
+        setLog('Этот браузер не поддерживает Web Speech API');
+        return;
+      }
+      applyCycleConfig();
+      state.manualStop = false;
+      state.isListening = true;
+      setStatus('Запуск прослушивания...');
+      updateButtons();
+      startRecognitionCycle();
+    }
+
+    function runButtonDiagnostics() {
+      const report = [
+        ['Старт', !els.startBtn.disabled || state.isListening],
+        ['Стоп', !els.stopBtn.disabled || !state.isListening],
+        ['Очистить ленту', !els.clearFeedBtn.disabled || state.history.length === 0],
+        ['Удалить историю', !els.clearHistoryBtn.disabled || state.history.length === 0],
+        ['Сохранить', !!els.saveConfigBtn],
+        ['Тест кнопок', !!els.testButtonsBtn],
+        ['Worker URL', !!els.workerUrl.value.trim()],
+      ];
+      const failed = report.filter(x => !x[1]);
+      if (failed.length) {
+        setStatus('Тест кнопок: есть замечания');
+        setLog('Проблемы: ' + failed.map(x => x[0]).join(', '));
+      } else {
+        setStatus('Тест кнопок: OK');
+        setLog('Все основные кнопки и связи доступны');
+      }
+    }
+
+    els.startBtn.addEventListener('click', startAllListening);
+    els.stopBtn.addEventListener('click', () => stopAllListening(false));
+    els.clearFeedBtn.addEventListener('click', clearFeedAndHistory);
+    els.clearHistoryBtn.addEventListener('click', clearHistoryOnly);
+    els.testButtonsBtn.addEventListener('click', runButtonDiagnostics);
+    els.saveConfigBtn.addEventListener('click', saveConfig);
+    els.cycleSelect.addEventListener('change', () => {
+      applyCycleConfig();
+      setLog('Конфигурация цикла языка обновлена');
     });
+
+    window.addEventListener('beforeunload', () => {
+      stopAllListening(false);
+    });
+
+    function init() {
+      els.versionBadge.textContent = APP_VERSION;
+      loadConfig();
+      loadHistory();
+      updateButtons();
+      if (!state.supportsRecognition) {
+        setStatus('SpeechRecognition не поддерживается в этом браузере');
+        setLive(false, 'Web Speech API недоступен');
+        setLog('Откройте в Safari/iPhone или совместимом браузере');
+      }
+    }
+
+    init();
   </script>
 </body>
 </html>
