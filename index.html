@@ -183,7 +183,7 @@
     <section class="card">
       <h1>Карманный переводчик RU ↔ VI</h1>
       <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Улучшены фильтрация шума, подтверждение языка по устойчивым словам, короткая сегментация и более ранняя выдача перевода на безопасной границе.</div>
-      <div class="version">Версия: v2.7-ru-vi-stream-core • 2026-04-17</div>
+      <div class="version">Версия: v2.8-ru-vi-strict-only • 2026-04-17</div>
     </section>
 
     <section class="card">
@@ -233,7 +233,7 @@
 
   <script>
     // ===== VERSION MARK =====
-    const APP_VERSION = 'v2.7-ru-vi-stream-core';
+    const APP_VERSION = 'v2.8-ru-vi-strict-only';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
     const STORAGE_KEY = 'translator_feed_v27_ru_vi';
@@ -287,7 +287,8 @@
     };
 
     const RU_HINTS = ['и','что','это','как','привет','спасибо','пожалуйста','да','нет','хорошо','сегодня','завтра','где','когда','почему','можно','нужно','тебя','меня','сейчас','после','потом'];
-    const VI_HINTS = ['xin','chào','cảm','ơn','không','được','tôi','bạn','là','đi','đây','gì','sao','này','vâng','rồi','nhé','với','cho','đang','một','hai','ba'];
+    const VI_HINTS = ['xin','chào','cảm','ơn','không','được','tôi','bạn','là','đi','đây','gì','sao','này','vâng','rồi','nhé','với','cho','đang','một','hai','ba','thôi','nha','em','anh','chị','trời','ơi','đâu','đúng','biết','muốn','phải'];
+    const EN_HINTS = ['hello','hi','come','today','tomorrow','please','thanks','thank','you','yes','no','good','morning','evening','where','why','what','when','how','and','the','is','are','to','of','in','on'];
     const RU_NON_BREAK = new Set(['и','а','но','или','что','если','когда','чтобы','потому','потому что','как','в','на','к','по','с','со','из','за','от','до','у','о','об','под','над','при']);
     const VI_NON_BREAK = new Set(['và','nhưng','nếu','khi','vì','rằng','là','ở','với','cho','của','để','từ','mà','thì']);
     const MIN_SPEECH_MS = 200;
@@ -382,6 +383,30 @@
       return ` ${String(text || '').toLowerCase()} `.replace(/\s+/g, ' ');
     }
 
+    function countHintMatches(norm, hints) {
+      let total = 0;
+      for (const w of hints) {
+        if (norm.includes(` ${w} `)) total += norm.split(` ${w} `).length - 1;
+      }
+      return total;
+    }
+
+    function looksUnsupportedForeign(text) {
+      const t = String(text || '').trim().toLowerCase();
+      if (!t) return false;
+      if (/[а-яё]/i.test(t)) return false;
+      const viMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(t);
+      if (viMarks) return false;
+      const norm = normalizeForMatch(t);
+      const enCount = countHintMatches(norm, EN_HINTS);
+      const viCount = countHintMatches(norm, VI_HINTS);
+      const words = tokenize(t);
+      if (!words.length) return false;
+      if (enCount >= 1 && viCount === 0) return true;
+      if (words.length >= 2 && /^[a-z\s]+$/.test(t) && viCount === 0) return true;
+      return false;
+    }
+
     function classifyRuVi(text) {
       const t = String(text || '').trim().toLowerCase();
       if (!t) return { lang: 'unknown', confidence: 0, scoreRu: 0, scoreVi: 0, tokensRu: 0, tokensVi: 0 };
@@ -419,7 +444,9 @@
       }
 
       const latinOnly = (t.match(/[a-z]/g) || []).length > 0 && !(t.match(/[а-яё]/gi) || []).length;
-      if (latinOnly) scoreVi += 0.7;
+      const enCount = countHintMatches(norm, EN_HINTS);
+      if (latinOnly) scoreVi += 0.25;
+      if (latinOnly && enCount > 0) scoreVi -= Math.min(4, enCount * 1.7);
 
       if (words.length >= 2) {
         if (tokensRu >= 2 && scoreRu >= scoreVi + 1.6) {
@@ -437,6 +464,10 @@
       }
       if (viMarks && words.length >= 2) {
         return { lang: 'vi', confidence: 0.78, scoreRu, scoreVi, tokensRu, tokensVi: Math.max(tokensVi, 2) };
+      }
+
+      if (looksUnsupportedForeign(t)) {
+        return { lang: 'unknown', confidence: 0.01, scoreRu, scoreVi: Math.min(scoreVi, 0.2), tokensRu, tokensVi: Math.min(tokensVi, 1) };
       }
 
       return { lang: 'unknown', confidence: 0.18, scoreRu, scoreVi, tokensRu, tokensVi };
@@ -623,6 +654,14 @@
           const res = event.results[i];
           const text = (res[0]?.transcript || '').trim();
           if (!text || isNoiseLike(text)) continue;
+          if (looksUnsupportedForeign(text)) {
+            if (autoMode && activeRecognitionLang === 'ru') {
+              triggerFastAutoSwitch('vi', 'Похоже, русский модуль поймал чужой латинский текст, пробую вьетнамский');
+              return;
+            }
+            setStatus('Отклонён чужой/ложный латинский текст', true);
+            continue;
+          }
 
           if (res.isFinal) {
             draftFinalText = `${draftFinalText} ${text}`.trim();
@@ -632,6 +671,19 @@
         }
 
         const combined = [draftFinalText, interimBuffer].filter(Boolean).join(' ').trim();
+      if (combined && looksUnsupportedForeign(combined)) {
+        currentTranscript.textContent = '';
+        currentTranslation.textContent = 'Текст отклонён: это не русский и не вьетнамский.';
+        draftFinalText = '';
+        interimBuffer = '';
+        lastAnalysis = { lang: 'unknown', confidence: 0.01, tokensRu: 0, tokensVi: 0 };
+        syncLanguageLabels(null);
+        updateConfidence(0.01);
+        if (autoMode && activeRecognitionLang === 'ru') {
+          triggerFastAutoSwitch('vi', 'Переключаюсь на вьетнамский: русский модуль дал чужой латинский текст');
+        }
+        return;
+      }
         if (combined && (now - lastSpeechAt) >= 0) {
           const analysis = analyzeDraft();
           const strongOpposite = isStrongOppositeSignal(combined, activeRecognitionLang);
@@ -737,6 +789,7 @@
           body: JSON.stringify({ text: cleaned, source, target })
         });
 
+        if (!response.ok) throw new Error('worker-http-' + response.status);
         const data = await response.json().catch(() => ({}));
         const translation = data.translation || data.translatedText || data.result || '';
 
