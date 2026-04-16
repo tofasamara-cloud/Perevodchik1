@@ -182,8 +182,8 @@
   <div class="app">
     <section class="card">
       <h1>Карманный переводчик RU ↔ VI</h1>
-      <div class="sub">Улучшено определение двух языков: русский и вьетнамский. Добавлен умный автопереключатель распознавания и убраны цветные кнопки.</div>
-      <div class="version">Версия: v2.5-ru-vi-autoswitch • 2026-04-17</div>
+      <div class="sub">Улучшено быстрое переключение между русским и вьетнамским. Авто-режим теперь быстрее реагирует на смену языка в фильмах и диалогах, кнопки остаются нейтральными.</div>
+      <div class="version">Версия: v2.6-ru-vi-fast-switch • 2026-04-17</div>
     </section>
 
     <section class="card">
@@ -209,7 +209,7 @@
       <div class="pill"><span id="liveDot" class="dot"></span><span id="statusText">Ожидание запуска</span></div>
       <div class="pill"><span class="dot ok"></span><span id="recognizerText">Распознавание: —</span></div>
       <div class="pill"><span class="dot ok"></span><span id="detectedText">Определённый язык: —</span></div>
-      <div class="small">Авто-режим работает только для двух языков: русский и вьетнамский. После успешной фразы система временно удерживает язык, а при тишине или слабом результате переключается.</div>
+      <div class="small">Авто-режим работает только для двух языков: русский и вьетнамский. Если сразу после одной фразы начинается второй язык, система старается быстро перезапустить распознавание на противоположном языке.</div>
     </section>
 
     <section class="card">
@@ -232,10 +232,10 @@
 
   <script>
     // ===== VERSION MARK =====
-    const APP_VERSION = 'v2.5-ru-vi-autoswitch';
+    const APP_VERSION = 'v2.6-ru-vi-fast-switch';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-    const STORAGE_KEY = 'translator_feed_v25_ru_vi';
+    const STORAGE_KEY = 'translator_feed_v26_ru_vi';
 
     // ===== WEB SPEECH =====
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -274,6 +274,8 @@
     let requestCounter = 0;
     let holdLanguageUntil = 0;
     let feed = [];
+    let pendingFastSwitch = null;
+    let switchCooldownUntil = 0;
 
     const LANG_META = {
       ru: { rec: 'ru-RU', label: 'Русский', target: 'vi', targetLabel: 'Вьетнамский' },
@@ -384,6 +386,39 @@
       return { lang, scoreRu, scoreVi };
     }
 
+
+    function isStrongOppositeSignal(text, currentLang) {
+      const guess = classifyRuVi(text);
+      if (!guess.lang || guess.lang === currentLang) return null;
+      const delta = Math.abs(guess.scoreRu - guess.scoreVi);
+      const hasViMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(text || '');
+      const hasCyr = /[а-яё]/i.test(text || '');
+      if (currentLang === 'ru' && guess.lang === 'vi' && (hasViMarks || delta >= 3.2)) return guess.lang;
+      if (currentLang === 'vi' && guess.lang === 'ru' && (hasCyr || delta >= 3.2)) return guess.lang;
+      return null;
+    }
+
+    function triggerFastAutoSwitch(nextLang, reasonText) {
+      const now = Date.now();
+      if (!autoMode || !isRunning) return;
+      if (!nextLang || nextLang === activeRecognitionLang) return;
+      if (now < switchCooldownUntil) return;
+      switchCooldownUntil = now + 1800;
+      pendingFastSwitch = nextLang;
+      preferredAutoLang = nextLang;
+      holdLanguageUntil = 0;
+      setStatus(reasonText || `Быстрое переключение: ${LANG_META[nextLang].label}`, true);
+      clearTimeout(restartTimer);
+      setTimeout(() => {
+        if (!isRunning) return;
+        try {
+          recognition && recognition.stop();
+        } catch {
+          startRecognitionCycle();
+        }
+      }, 90);
+    }
+
     function shouldSwitchAutoLanguage() {
       const now = Date.now();
       if (now < holdLanguageUntil) return false;
@@ -444,7 +479,7 @@
             const detected = guess.lang || langCode;
             lastDetectedLang = detected;
             preferredAutoLang = detected;
-            holdLanguageUntil = Date.now() + 9000;
+            holdLanguageUntil = Date.now() + 1800;
             syncLanguageLabels(detected);
             updateCurrentTranscript();
             debouncedTranslate(finalBuffer, detected);
@@ -460,6 +495,13 @@
           preferredAutoLang = liveGuess.lang;
           syncLanguageLabels(liveGuess.lang);
         }
+
+        const strongOpposite = isStrongOppositeSignal(combined, activeRecognitionLang);
+        if (strongOpposite) {
+          triggerFastAutoSwitch(strongOpposite, `Быстрое переключение на ${LANG_META[strongOpposite].label}`);
+          return;
+        }
+
         updateCurrentTranscript();
       };
 
@@ -479,6 +521,13 @@
       rec.onend = () => {
         if (isStopping || !isRunning) {
           setStatus('Остановлено', false);
+          return;
+        }
+
+        if (pendingFastSwitch) {
+          preferredAutoLang = pendingFastSwitch;
+          pendingFastSwitch = null;
+          scheduleRestart();
           return;
         }
 
