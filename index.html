@@ -8,276 +8,93 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RU↔VI" />
   <meta name="format-detection" content="telephone=no" />
-  <title>RU ↔ VI Voice Translator</title>
+  <title>RU ↔ VI Fast Stream Translator</title>
   <style>
     :root {
       --bg: #08111f;
-      --panel: rgba(15, 23, 42, 0.8);
+      --panel: rgba(15, 23, 42, 0.82);
       --panel-2: rgba(30, 41, 59, 0.74);
       --line: rgba(148, 163, 184, 0.18);
       --text: #e5eef9;
       --muted: #94a3b8;
       --accent: #38bdf8;
-      --accent-2: #22c55e;
-      --danger: #fb7185;
+      --good: #22c55e;
       --warn: #f59e0b;
-      --shadow: 0 18px 60px rgba(0,0,0,.35);
+      --danger: #fb7185;
       --radius: 22px;
+      --shadow: 0 18px 60px rgba(0,0,0,.35);
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-    html {
-      background: #08111f;
-      height: 100%;
-      overscroll-behavior-y: none;
-      -webkit-text-size-adjust: 100%;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    html { height: 100%; background: #08111f; -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
     body {
-      margin: 0;
-      min-height: 100%;
-      background: radial-gradient(circle at top, #102448 0, #08111f 46%, #050b14 100%);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
+      margin: 0; min-height: 100%;
+      background: radial-gradient(circle at top, #102448 0, #08111f 48%, #050b14 100%);
+      color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
     }
-    input, select, button {
-      font: inherit;
-    }
-    .app {
-      max-width: 880px;
-      margin: 0 auto;
-      min-height: 100vh;
-      padding: calc(16px + var(--safe-top)) 14px calc(24px + var(--safe-bottom));
-      display: grid;
-      gap: 14px;
-    }
+    input, select, button { font: inherit; }
+    .app { max-width: 900px; margin: 0 auto; min-height: 100vh; padding: calc(16px + var(--safe-top)) 12px calc(24px + var(--safe-bottom)); display: grid; gap: 14px; }
     .card {
-      background: var(--panel);
-      -webkit-backdrop-filter: blur(18px);
-      backdrop-filter: blur(18px);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+      -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: var(--shadow);
       overflow: hidden;
     }
-    .hero {
-      padding: 18px;
-      display: grid;
-      gap: 12px;
-      background: linear-gradient(180deg, rgba(56,189,248,.12), rgba(34,197,94,.08));
+    .hero { padding: 18px; display: grid; gap: 12px; background: linear-gradient(180deg, rgba(56,189,248,.12), rgba(34,197,94,.06)); }
+    .topline { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .brand { font-size: 20px; font-weight: 800; }
+    .version { font-size: 12px; color: var(--muted); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); }
+    .subtitle { color: var(--muted); font-size: 14px; line-height: 1.42; }
+    .grid2, .grid3 { display: grid; gap: 10px; }
+    .grid2 { grid-template-columns: 1fr 1fr; }
+    .grid3 { grid-template-columns: repeat(3, 1fr); }
+    .pillbox, .segment {
+      background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 18px;
+      padding: 12px 14px; min-width: 0;
     }
-    .topline {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .value { font-size: 15px; font-weight: 700; word-break: break-word; }
+    .toolbar { padding: 14px; display: grid; gap: 12px; position: sticky; top: calc(8px + var(--safe-top)); z-index: 3; }
+    .field-input, button, select {
+      width: 100%; min-height: 54px; border-radius: 18px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.05); color: var(--text); padding: 12px 14px; appearance: none; -webkit-appearance: none;
+      font-size: 15px; font-weight: 700;
     }
-    .brand {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: .2px;
-    }
-    .version {
-      font-size: 12px;
-      color: var(--muted);
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 6px 10px;
-      background: rgba(255,255,255,.04);
-      white-space: nowrap;
-    }
-    .subtitle {
-      color: var(--muted);
-      line-height: 1.38;
-      font-size: 14px;
-    }
-    .statusbar, .toolbar-grid, .button-row {
-      display: grid;
-      gap: 10px;
-    }
-    .statusbar, .toolbar-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-    .button-row {
-      grid-template-columns: repeat(3, 1fr);
-    }
-    .pillbox {
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 12px 14px;
-      min-width: 0;
-    }
-    .label {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-    .value {
-      font-weight: 700;
-      font-size: 15px;
-      word-break: break-word;
-    }
-    .toolbar {
-      padding: 14px;
-      display: grid;
-      gap: 12px;
-      position: sticky;
-      top: calc(8px + var(--safe-top));
-      z-index: 3;
-    }
-    .field-input,
-    button,
-    select {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.05);
-      color: var(--text);
-      border-radius: 18px;
-      min-height: 54px;
-      padding: 12px 14px;
-      font-size: 15px;
-      font-weight: 700;
-      width: 100%;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-    .field-input::placeholder {
-      color: #89a0bb;
-    }
-    button {
-      cursor: pointer;
-    }
-    button.primary { background: linear-gradient(180deg, rgba(56,189,248,.25), rgba(56,189,248,.12)); }
+    .field-input::placeholder { color: #89a0bb; }
+    button { cursor: pointer; }
+    button.primary { background: linear-gradient(180deg, rgba(56,189,248,.24), rgba(56,189,248,.10)); }
     button.good { background: linear-gradient(180deg, rgba(34,197,94,.22), rgba(34,197,94,.10)); }
     button.warn { background: linear-gradient(180deg, rgba(245,158,11,.20), rgba(245,158,11,.08)); }
     button.danger { background: linear-gradient(180deg, rgba(251,113,133,.20), rgba(251,113,133,.08)); }
-    button:disabled, select:disabled, input:disabled {
-      opacity: .45;
-      cursor: default;
-    }
-    .mic-live {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--muted);
-      flex-wrap: wrap;
-    }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #64748b;
-      box-shadow: 0 0 0 0 rgba(34,197,94,.6);
-      flex: 0 0 auto;
-    }
-    .dot.live {
-      background: var(--accent-2);
-      animation: pulse 1.2s infinite;
-    }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
-      70% { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
-    }
-    .feed-wrap {
-      padding: 0 14px 14px;
-    }
-    .feed-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 14px 2px 10px;
-      flex-wrap: wrap;
-    }
-    .feed {
-      display: grid;
-      gap: 10px;
-      max-height: 56vh;
-      overflow: auto;
-      padding-right: 2px;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-    }
-    .bubble {
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-      border-radius: 18px;
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-    }
-    .bubble-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .dir {
-      font-size: 12px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-    }
+    button:disabled, select:disabled, input:disabled { opacity: .45; cursor: default; }
+    .mic-live { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #64748b; flex: 0 0 auto; box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+    .dot.live { background: var(--good); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); } 70% { box-shadow: 0 0 0 14px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    .logline { min-height: 18px; font-size: 13px; color: var(--muted); }
+    .feed-wrap { padding: 0 14px 14px; }
+    .feed-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 2px 10px; }
+    .feed { display: grid; gap: 10px; max-height: 58vh; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
+    .bubble { border: 1px solid var(--line); background: var(--panel-2); border-radius: 18px; padding: 14px; display: grid; gap: 10px; }
+    .bubble-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .dir { font-size: 12px; padding: 6px 10px; border-radius: 999px; color: var(--muted); border: 1px solid var(--line); background: rgba(255,255,255,.04); }
     .time { font-size: 12px; color: var(--muted); }
-    .segment {
-      border-radius: 14px;
-      padding: 10px 12px;
-      background: rgba(255,255,255,.03);
-      border: 1px solid rgba(148,163,184,.12);
+    .small { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .text { white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+    .jsonbox {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px; line-height: 1.5; background: rgba(2, 6, 23, 0.55);
+      border: 1px solid rgba(148,163,184,.12); border-radius: 14px; padding: 10px 12px; white-space: pre-wrap;
     }
-    .segment .small {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-    .segment .text {
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.45;
-    }
-    .footer-note {
-      padding: 12px 14px 16px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.42;
-    }
-    .logline { font-size: 13px; color: var(--muted); min-height: 18px; }
-    .empty {
-      padding: 24px 14px;
-      text-align: center;
-      color: var(--muted);
-      border: 1px dashed var(--line);
-      border-radius: 18px;
-    }
+    .empty { padding: 24px 14px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 18px; }
+    .footer-note { padding: 12px 14px 16px; color: var(--muted); font-size: 12px; line-height: 1.42; }
     @media (max-width: 680px) {
-      .statusbar, .toolbar-grid, .button-row {
-        grid-template-columns: 1fr;
-      }
-      .app {
-        padding-left: 10px;
-        padding-right: 10px;
-      }
-      .toolbar {
-        top: calc(6px + var(--safe-top));
-      }
-      .feed {
-        max-height: none;
-      }
-      .brand {
-        font-size: 18px;
-      }
+      .grid2, .grid3 { grid-template-columns: 1fr; }
+      .brand { font-size: 18px; }
+      .toolbar { top: calc(6px + var(--safe-top)); }
+      .feed { max-height: none; }
+      .app { padding-left: 10px; padding-right: 10px; }
     }
   </style>
 </head>
@@ -285,55 +102,47 @@
   <div class="app">
     <section class="card hero">
       <div class="topline">
-        <div class="brand">RU ↔ VI Voice Translator</div>
-        <div class="version" id="versionBadge">v2.2-ios-pwa-auto-ru-vi</div>
+        <div class="brand">RU ↔ VI Fast Stream Translator</div>
+        <div class="version" id="versionBadge">v2.4-ios-pwa-fastgate</div>
       </div>
       <div class="subtitle">
-        iPhone PWA версия: автоцикл распознавания, автоопределение RU/VI по тексту, транскрибация и перевод в противоположный язык. Исправлены очистка истории, дубли, перезапуски и обработка скрытия вкладки.
+        Быстрый потоковый режим для iPhone PWA: только ru / vi / unknown, строгая фильтрация шума, короткие устойчивые сегменты, перевод на первой безопасной границе.
       </div>
-      <div class="statusbar">
-        <div class="pillbox">
-          <div class="label">Статус</div>
-          <div class="value" id="statusText">Готово к запуску</div>
-        </div>
-        <div class="pillbox">
-          <div class="label">Режим распознавания</div>
-          <div class="value" id="modeText">AUTO: RU → VI / VI → RU</div>
-        </div>
+      <div class="grid2">
+        <div class="pillbox"><div class="label">Статус</div><div class="value" id="statusText">Готово к запуску</div></div>
+        <div class="pillbox"><div class="label">Режим</div><div class="value" id="modeText">AUTO: RU → VI / VI → RU</div></div>
+      </div>
+      <div class="grid2">
+        <div class="pillbox"><div class="label">VAD / шум</div><div class="value" id="vadText">ожидание</div></div>
+        <div class="pillbox"><div class="label">Текущий язык</div><div class="value" id="langText">unknown</div></div>
       </div>
     </section>
 
     <section class="card toolbar">
-      <div class="toolbar-grid">
+      <div class="grid2">
         <div>
           <div class="label">Cloudflare Worker</div>
           <input id="workerUrl" class="field-input" type="text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" value="https://square-cloud-e319.tofasamara.workers.dev" />
         </div>
         <div>
-          <div class="label">Авто-цикл языка для SpeechRecognition</div>
+          <div class="label">Цикл SpeechRecognition</div>
           <select id="cycleSelect">
             <option value="ru-RU,vi-VN">Сначала RU, затем VI</option>
             <option value="vi-VN,ru-RU">Сначала VI, затем RU</option>
           </select>
         </div>
       </div>
-
-      <div class="button-row">
+      <div class="grid3">
         <button id="startBtn" class="primary">🎙️ Старт</button>
         <button id="stopBtn" class="warn" disabled>⏹️ Стоп</button>
         <button id="clearFeedBtn" class="danger">🧹 Очистить ленту</button>
       </div>
-
-      <div class="button-row">
+      <div class="grid3">
         <button id="clearHistoryBtn">🗑️ Удалить историю</button>
         <button id="testButtonsBtn">🧪 Тест кнопок</button>
         <button id="saveConfigBtn" class="good">💾 Сохранить</button>
       </div>
-
-      <div class="mic-live">
-        <span class="dot" id="liveDot"></span>
-        <span id="liveText">Микрофон выключен</span>
-      </div>
+      <div class="mic-live"><span class="dot" id="liveDot"></span><span id="liveText">Микрофон выключен</span></div>
       <div class="logline" id="logText">Лог: ожидание действий.</div>
     </section>
 
@@ -346,20 +155,29 @@
         <div id="feed" class="feed"></div>
       </div>
       <div class="footer-note">
-        Важно: Safari/iPhone может останавливать распознавание при сворачивании PWA или блокировке экрана. В этом index добавлена безопасная остановка, чтобы не было зависших состояний и ложных перезапусков.
+        Ограничение браузера: iPhone Safari не даёт идеального сырого ASR/VAD как нативный движок. В этом index добавлена лучшая доступная схема: микрофонный VAD + строгая проверка текста + только ru/vi/unknown.
       </div>
     </section>
   </div>
 
   <script>
-    const APP_VERSION = 'v2.2-ios-pwa-auto-ru-vi';
-    const STORAGE_KEY = 'translator_ru_vi_history_v2_2';
-    const CONFIG_KEY = 'translator_ru_vi_config_v2_2';
+    const APP_VERSION = 'v2.4-ios-pwa-fastgate';
+    const STORAGE_KEY = 'translator_ru_vi_history_v2_4';
+    const CONFIG_KEY = 'translator_ru_vi_config_v2_4';
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const RU_OPENERS = new Set(['и','а','но','что','если','когда','потому','потому что','который','которая','которые','в','на','к','с','из','по','за','для','у','о','об','от','до','при','ли','же']);
+    const VI_OPENERS = new Set(['và','nhưng','nếu','khi','bởi','vì','rằng','là','ở','trong','trên','dưới','của','cho','với','để','tại','thì','mà']);
+    const RU_HINTS = ['привет','спасибо','пожалуйста','сегодня','завтра','можно','нужно','хочу','куда','почему','потому','когда','сколько','хорошо','сейчас','деньги','вода','еда'];
+    const VI_HINTS = ['xin','chào','cảm','ơn','không','được','tôi','bạn','muốn','hôm','nay','bao','nhiêu','đi','ăn','uống','bây','giờ','nước'];
+    const VOWELS_LATIN = /[aeiouyăâêôơư]/i;
 
     const els = {
       versionBadge: document.getElementById('versionBadge'),
       statusText: document.getElementById('statusText'),
       modeText: document.getElementById('modeText'),
+      vadText: document.getElementById('vadText'),
+      langText: document.getElementById('langText'),
       workerUrl: document.getElementById('workerUrl'),
       cycleSelect: document.getElementById('cycleSelect'),
       startBtn: document.getElementById('startBtn'),
@@ -375,69 +193,82 @@
       historyMeta: document.getElementById('historyMeta'),
     };
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
     const state = {
       isListening: false,
+      manualStop: false,
       recognition: null,
+      pendingRestart: null,
+      supportsRecognition: !!SpeechRecognition,
       cycleLangs: ['ru-RU', 'vi-VN'],
       currentCycleIndex: 0,
       history: [],
       feedHidden: false,
-      manualStop: false,
+      livePreview: null,
       isBusyTranslating: false,
-      pendingRestart: null,
-      lastDetectedLanguage: null,
-      lastFinalTranscript: '',
+      lastStableLanguage: 'unknown',
+      lastLanguageConfidence: 0,
+      lastFinalFingerprint: '',
       lastFinalAt: 0,
-      supportsRecognition: !!SpeechRecognition,
       hasVisibilityPaused: false,
+      audioStream: null,
+      audioContext: null,
+      analyser: null,
+      vadTimer: null,
+      noiseFloor: 0.008,
+      rms: 0,
+      speechFrames: 0,
+      silenceFrames: 0,
+      speechLikely: false,
     };
 
-    function setStatus(text) {
-      els.statusText.textContent = text;
-    }
-
-    function setLog(text) {
-      els.logText.textContent = 'Лог: ' + text;
-    }
-
-    function setLive(active, text) {
-      els.liveDot.classList.toggle('live', !!active);
-      els.liveText.textContent = text;
+    function setStatus(text) { els.statusText.textContent = text; }
+    function setLog(text) { els.logText.textContent = 'Лог: ' + text; }
+    function setLive(active, text) { els.liveDot.classList.toggle('live', !!active); els.liveText.textContent = text; }
+    function setLangDisplay(lang, confidence) { els.langText.textContent = `${lang}${typeof confidence === 'number' ? ` · ${confidence.toFixed(2)}` : ''}`; }
+    function setVadDisplay() {
+      const type = state.speechLikely ? 'speech' : 'noise';
+      els.vadText.textContent = `${type} · rms ${state.rms.toFixed(3)} · floor ${state.noiseFloor.toFixed(3)}`;
     }
 
     function updateButtons() {
       els.startBtn.disabled = !state.supportsRecognition || state.isListening;
       els.stopBtn.disabled = !state.isListening;
-      els.clearFeedBtn.disabled = state.history.length === 0 && !state.feedHidden;
+      els.clearFeedBtn.disabled = state.history.length === 0 && !state.livePreview && !state.feedHidden;
       els.clearHistoryBtn.disabled = state.history.length === 0;
     }
 
     function pluralize(n, forms) {
-      const m10 = n % 10;
-      const m100 = n % 100;
+      const m10 = n % 10, m100 = n % 100;
       if (m10 === 1 && m100 !== 11) return forms[0];
       if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return forms[1];
       return forms[2];
     }
 
     function updateHistoryMeta() {
-      const hiddenSuffix = state.feedHidden ? ' · лента скрыта' : '';
-      els.historyMeta.textContent = `${state.history.length} ${pluralize(state.history.length, ['запись', 'записи', 'записей'])}${hiddenSuffix}`;
+      const hidden = state.feedHidden ? ' · лента скрыта' : '';
+      const preview = state.livePreview ? ' · есть live' : '';
+      els.historyMeta.textContent = `${state.history.length} ${pluralize(state.history.length, ['запись','записи','записей'])}${hidden}${preview}`;
     }
 
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function normalizeTranscript(text) { return String(text || '').replace(/\s+/g, ' ').trim(); }
+    function tokenize(text) { return normalizeTranscript(text).toLowerCase().split(/\s+/).filter(Boolean); }
+    function wordCount(text) { return tokenize(text).length; }
+    function formatTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+    function fingerprint(text) { return normalizeTranscript(text).toLowerCase(); }
+
     function saveConfig(silent = false) {
-      const data = {
-        workerUrl: els.workerUrl.value.trim(),
-        cycleSelect: els.cycleSelect.value,
-        version: APP_VERSION,
-      };
+      const data = { workerUrl: els.workerUrl.value.trim(), cycleSelect: els.cycleSelect.value, version: APP_VERSION };
       localStorage.setItem(CONFIG_KEY, JSON.stringify(data));
-      if (!silent) {
-        setLog('Настройки сохранены');
-        setStatus('Настройки сохранены');
-      }
+      if (!silent) { setStatus('Настройки сохранены'); setLog('Настройки сохранены'); }
     }
 
     function loadConfig() {
@@ -445,20 +276,8 @@
         const cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
         if (cfg.workerUrl) els.workerUrl.value = cfg.workerUrl;
         if (cfg.cycleSelect) els.cycleSelect.value = cfg.cycleSelect;
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (e) { console.error(e); }
       applyCycleConfig();
-    }
-
-    function applyCycleConfig() {
-      state.cycleLangs = (els.cycleSelect.value || 'ru-RU,vi-VN')
-        .split(',')
-        .map(v => v.trim())
-        .filter(Boolean);
-      els.modeText.textContent = state.cycleLangs[0] === 'vi-VN'
-        ? 'AUTO: VI → RU / RU → VI'
-        : 'AUTO: RU → VI / VI → RU';
     }
 
     function saveHistory() {
@@ -471,140 +290,225 @@
       try {
         state.history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         if (!Array.isArray(state.history)) state.history = [];
-      } catch {
-        state.history = [];
-      }
+      } catch { state.history = []; }
       renderHistory();
       updateButtons();
       updateHistoryMeta();
     }
 
-    function escapeHtml(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    function applyCycleConfig() {
+      state.cycleLangs = (els.cycleSelect.value || 'ru-RU,vi-VN').split(',').map(v => v.trim()).filter(Boolean);
+      els.modeText.textContent = state.cycleLangs[0] === 'vi-VN' ? 'AUTO: VI → RU / RU → VI' : 'AUTO: RU → VI / VI → RU';
     }
 
-    function formatTime(ts) {
-      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    function previewHtml(p) {
+      return `
+        <article class="bubble">
+          <div class="bubble-head">
+            <div class="dir">LIVE · ${escapeHtml(p.language)} · ${p.is_final ? 'final' : 'preview'}</div>
+            <div class="time">${formatTime(p.ts)}</div>
+          </div>
+          <div class="segment"><div class="small">Предпросмотр</div><div class="text">${escapeHtml(p.text || '…')}</div></div>
+          <div class="jsonbox">${escapeHtml(JSON.stringify({
+            type: p.type || 'speech',
+            language: p.language || 'unknown',
+            text: p.text || '',
+            translation: p.translation || '',
+            is_final: !!p.is_final,
+            confidence: Number(p.confidence || 0)
+          }, null, 2))}</div>
+        </article>`;
+    }
+
+    function entryHtml(item) {
+      return `
+        <article class="bubble">
+          <div class="bubble-head">
+            <div class="dir">${escapeHtml(item.direction || (item.language || 'unknown').toUpperCase())}</div>
+            <div class="time">${formatTime(item.ts)}</div>
+          </div>
+          <div class="segment"><div class="small">Транскрибация (${escapeHtml(item.sourceLangLabel || item.language || 'unknown')})</div><div class="text">${escapeHtml(item.sourceText || item.text || '')}</div></div>
+          <div class="segment"><div class="small">Перевод (${escapeHtml(item.targetLangLabel || '-')})</div><div class="text">${escapeHtml(item.translatedText || item.translation || '')}</div></div>
+          <div class="jsonbox">${escapeHtml(JSON.stringify({
+            type: item.type || 'speech',
+            language: item.language || (item.sourceLangLabel ? item.sourceLangLabel.toLowerCase() : 'unknown'),
+            text: item.sourceText || item.text || '',
+            translation: item.translatedText || item.translation || '',
+            is_final: !!item.is_final,
+            confidence: Number(item.confidence || 0)
+          }, null, 2))}</div>
+        </article>`;
     }
 
     function renderHistory() {
       if (state.feedHidden) {
-        els.feed.innerHTML = '<div class="empty">Лента очищена только на экране. История сохранена и вернётся после перезагрузки или новой записи.</div>';
-        updateButtons();
-        updateHistoryMeta();
+        els.feed.innerHTML = '<div class="empty">Лента очищена только на экране. История сохранена.</div>';
+        updateButtons(); updateHistoryMeta();
         return;
       }
-
-      if (!state.history.length) {
-        els.feed.innerHTML = '<div class="empty">Лента пустая. Нажмите «Старт», скажите фразу на русском или вьетнамском.</div>';
-        return;
-      }
-
-      els.feed.innerHTML = state.history.slice().reverse().map(item => `
-        <article class="bubble">
-          <div class="bubble-head">
-            <div class="dir">${escapeHtml(item.direction)}</div>
-            <div class="time">${formatTime(item.ts)}</div>
-          </div>
-          <div class="segment">
-            <div class="small">Транскрибация (${escapeHtml(item.sourceLangLabel)})</div>
-            <div class="text">${escapeHtml(item.sourceText)}</div>
-          </div>
-          <div class="segment">
-            <div class="small">Перевод (${escapeHtml(item.targetLangLabel)})</div>
-            <div class="text">${escapeHtml(item.translatedText)}</div>
-          </div>
-        </article>
-      `).join('');
+      const parts = [];
+      if (state.livePreview) parts.push(previewHtml(state.livePreview));
+      if (state.history.length) parts.push(...state.history.map(entryHtml));
+      els.feed.innerHTML = parts.length ? parts.join('') : '<div class="empty">Лента пустая. Нажмите «Старт» и скажите короткую фразу на русском или вьетнамском.</div>';
+      updateButtons(); updateHistoryMeta();
+      requestAnimationFrame(() => { els.feed.scrollTop = els.feed.scrollHeight; });
     }
 
     function appendEntry(entry) {
       state.feedHidden = false;
+      state.livePreview = null;
       state.history.push(entry);
       saveHistory();
       renderHistory();
-      requestAnimationFrame(() => {
-        els.feed.scrollTop = 0;
-      });
     }
 
     function clearFeedOnly() {
       state.feedHidden = true;
+      state.livePreview = null;
       renderHistory();
-      setLog('Лента очищена только на экране');
       setStatus('Лента очищена');
+      setLog('Лента очищена только на экране');
     }
 
     function clearHistoryOnly() {
       state.history = [];
       state.feedHidden = false;
+      state.livePreview = null;
       localStorage.removeItem(STORAGE_KEY);
-      renderHistory();
-      updateButtons();
-      updateHistoryMeta();
-      setLog('История полностью удалена');
+      renderHistory(); updateButtons(); updateHistoryMeta();
       setStatus('История удалена');
+      setLog('История полностью удалена');
     }
 
-    function detectLanguage(text) {
-      const s = String(text || '').trim();
-      const lower = s.toLowerCase();
-      const cyrillic = (s.match(/[А-Яа-яЁё]/g) || []).length;
-      const vietnameseMarks = (s.match(/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/gi) || []).length;
-      const latin = (s.match(/[A-Za-z]/g) || []).length;
-      const vnWords = ['xin chào','cảm ơn','không','được','tôi','bạn','muốn','đi','ăn','uống','bao nhiêu','hôm nay'];
-      const ruWords = ['привет','спасибо','пожалуйста','как','что','где','сегодня','можно','нужно','хочу'];
-      const vnHits = vnWords.reduce((acc, w) => acc + (lower.includes(w) ? 1 : 0), 0);
-      const ruHits = ruWords.reduce((acc, w) => acc + (lower.includes(w) ? 1 : 0), 0);
+    function countHintHits(tokens, hints) { return hints.reduce((acc, w) => acc + (tokens.includes(w) ? 1 : 0), 0); }
 
-      if (cyrillic > 1 || ruHits > vnHits + 1) return 'ru';
-      if (vietnameseMarks > 0 || vnHits > ruHits) return 'vi';
-      if (latin > 0 && state.lastDetectedLanguage) return state.lastDetectedLanguage;
-      return state.lastDetectedLanguage || 'ru';
+    function looksLikeNoise(text) {
+      const s = normalizeTranscript(text);
+      if (!s) return true;
+      const letters = (s.match(/[A-Za-zА-Яа-яЁёĂÂĐÊÔƠƯăâđêôơưÁÀẢÃẠẤẦẨẪẬẮẰẲẴẶÉÈẺẼẸẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỸỴ]/g) || []).length;
+      const tokens = tokenize(s);
+      if (letters < 2 || tokens.length === 0) return true;
+      if (/^(ха|ах|ой|эй|эм|мм|uh|um|ah|oh|a|e)+$/i.test(s.replace(/\s+/g, ''))) return true;
+      if (!state.speechLikely && tokens.length < 2) return true;
+      return false;
     }
 
-    function getDirection(lang) {
-      if (lang === 'ru') {
-        return {
-          sourceLang: 'ru',
-          targetLang: 'vi',
-          sourceLangLabel: 'RU',
-          targetLangLabel: 'VI',
-          direction: 'RU → VI'
-        };
+    function detectLanguageDetailed(text) {
+      const original = normalizeTranscript(text);
+      const tokens = tokenize(original);
+      const cyr = (original.match(/[А-Яа-яЁё]/g) || []).length;
+      const viMarks = (original.match(/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/gi) || []).length;
+      const latin = (original.match(/[A-Za-z]/g) || []).length;
+      const ruHits = countHintHits(tokens, RU_HINTS);
+      const viHits = countHintHits(tokens, VI_HINTS);
+      const viFunctionHits = tokens.filter(t => VI_OPENERS.has(t) || VI_HINTS.includes(t) || /[ăâđêôơư]/i.test(t)).length;
+      const ruFunctionHits = tokens.filter(t => RU_OPENERS.has(t) || RU_HINTS.includes(t)).length;
+      let ruScore = 0;
+      let viScore = 0;
+
+      if (cyr >= 4) ruScore += 0.98; else if (cyr >= 2) ruScore += 0.84; else if (cyr === 1) ruScore += 0.35;
+      if (viMarks >= 2) viScore += 0.98; else if (viMarks === 1) viScore += 0.80;
+      if (ruHits >= 2) ruScore += 0.42; else if (ruHits === 1) ruScore += 0.16;
+      if (viHits >= 2) viScore += 0.42; else if (viHits === 1) viScore += 0.16;
+
+      if (latin >= 4 && viMarks === 0 && cyr === 0 && tokens.length >= 3) {
+        if (viFunctionHits >= 2) viScore += 0.30;
+        const vowelish = tokens.filter(t => VOWELS_LATIN.test(t)).length;
+        if (vowelish >= 2 && viFunctionHits >= 1) viScore += 0.08;
       }
-      return {
-        sourceLang: 'vi',
-        targetLang: 'ru',
-        sourceLangLabel: 'VI',
-        targetLangLabel: 'RU',
-        direction: 'VI → RU'
-      };
+
+      if (tokens.length >= 3 && ruFunctionHits >= 2) ruScore += 0.10;
+      if (tokens.length >= 3 && viFunctionHits >= 2) viScore += 0.10;
+
+      const strongRu = cyr >= 2 || ruHits >= 2;
+      const strongVi = viMarks >= 1 || viHits >= 2 || (tokens.length >= 3 && viFunctionHits >= 2);
+      const margin = Math.abs(ruScore - viScore);
+      const topScore = Math.max(ruScore, viScore);
+      let language = 'unknown';
+
+      if (strongRu && ruScore >= viScore + 0.18 && topScore >= 0.62) language = 'ru';
+      else if (strongVi && viScore >= ruScore + 0.18 && topScore >= 0.62) language = 'vi';
+      else if (state.lastStableLanguage !== 'unknown' && topScore >= 0.40 && margin < 0.18) language = state.lastStableLanguage;
+      else language = 'unknown';
+
+      if (tokens.length < 2 && cyr < 2 && viMarks < 1) language = state.lastStableLanguage !== 'unknown' ? state.lastStableLanguage : 'unknown';
+      if (tokens.length < 2 && (ruHits + viHits) <= 1 && cyr === 0 && viMarks === 0) language = 'unknown';
+
+      let confidence = Math.max(0, Math.min(1, topScore));
+      if (language === 'unknown') confidence = Math.min(confidence, 0.49);
+
+      if (language !== 'unknown') {
+        const sameAsPrev = language === state.lastStableLanguage;
+        if (sameAsPrev || strongRu || strongVi) {
+          state.lastStableLanguage = language;
+          state.lastLanguageConfidence = confidence;
+        }
+      }
+      return { language, confidence: Number(confidence.toFixed(2)), tokens, ruScore, viScore };
     }
 
-    function normalizeTranscript(text) {
-      return String(text || '').replace(/\s+/g, ' ').trim();
+    function isUnsafeEnding(text, language) {
+      const tokens = tokenize(text);
+      if (!tokens.length) return true;
+      const end1 = tokens[tokens.length - 1];
+      const end2 = tokens.length >= 2 ? tokens.slice(-2).join(' ') : end1;
+      if (/^[,;:\-]$/.test(end1)) return true;
+      if (/\d+[\.,]?\d*$/.test(end1)) return true;
+      if (language === 'ru') return RU_OPENERS.has(end1) || RU_OPENERS.has(end2);
+      if (language === 'vi') return VI_OPENERS.has(end1) || VI_OPENERS.has(end2);
+      return true;
+    }
+
+    function splitIntoSafeSegments(text, language) {
+      const normalized = normalizeTranscript(text);
+      const tokens = tokenize(normalized);
+      if (!tokens.length) return [];
+      const segments = [];
+      let current = [];
+      for (let i = 0; i < tokens.length; i++) {
+        current.push(tokens[i]);
+        const joined = current.join(' ');
+        const count = current.length;
+        const atEnd = i === tokens.length - 1;
+        const safeByLen = count >= 6 && count <= 10 && !isUnsafeEnding(joined, language);
+        const forced = count >= 13;
+        if ((safeByLen || forced || atEnd) && joined) {
+          if (atEnd && isUnsafeEnding(joined, language) && segments.length && count < 6) segments[segments.length - 1] += ' ' + joined;
+          else segments.push(joined);
+          current = [];
+        }
+      }
+      if (current.length) {
+        const tail = current.join(' ');
+        if (segments.length) segments[segments.length - 1] += ' ' + tail;
+        else segments.push(tail);
+      }
+      return segments.filter(Boolean);
+    }
+
+    function makeModuleResult({ type, language, text, translation, is_final, confidence }) {
+      return { type, language, text, translation, is_final, confidence: Number((confidence || 0).toFixed(2)) };
     }
 
     function isDuplicateTranscript(text) {
-      const normalized = normalizeTranscript(text).toLowerCase();
-      if (!normalized) return true;
+      const fp = fingerprint(text);
+      if (!fp) return true;
       const now = Date.now();
-      const duplicate = normalized === state.lastFinalTranscript && now - state.lastFinalAt < 5000;
-      state.lastFinalTranscript = normalized;
-      state.lastFinalAt = now;
+      const duplicate = fp === state.lastFinalFingerprint && now - state.lastFinalAt < 5000;
+      if (!duplicate) { state.lastFinalFingerprint = fp; state.lastFinalAt = now; }
       return duplicate;
+    }
+
+    function updateLivePreview(text, language, confidence, isFinal, translation = '') {
+      if (!text) state.livePreview = null;
+      else state.livePreview = { ts: Date.now(), type: 'speech', text, translation, language, confidence, is_final: isFinal };
+      if (!state.feedHidden) renderHistory();
+      setLangDisplay(language || 'unknown', confidence || 0);
     }
 
     async function translateText(text, sourceLang, targetLang) {
       const url = els.workerUrl.value.trim();
       if (!url) throw new Error('Не указан Worker URL');
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
       const payloads = [
@@ -612,23 +516,14 @@
         { text, source_lang: sourceLang, target_lang: targetLang },
         { q: text, source: sourceLang, target: targetLang },
       ];
-
       let lastError = null;
       for (const payload of payloads) {
         try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-          });
+          const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json().catch(() => ({}));
           const translated = data.translatedText || data.translation || data.translated || data.result || data.text || '';
-          if (translated) {
-            clearTimeout(timeoutId);
-            return String(translated).trim();
-          }
+          if (translated) { clearTimeout(timeoutId); return String(translated).trim(); }
           throw new Error('Пустой ответ от переводчика');
         } catch (err) {
           lastError = err;
@@ -638,6 +533,142 @@
       clearTimeout(timeoutId);
       if (controller.signal.aborted) throw new Error('Таймаут перевода');
       throw lastError || new Error('Ошибка перевода');
+    }
+
+    function getDirection(lang) {
+      if (lang === 'ru') return { sourceLang: 'ru', targetLang: 'vi', sourceLangLabel: 'RU', targetLangLabel: 'VI', direction: 'RU → VI' };
+      return { sourceLang: 'vi', targetLang: 'ru', sourceLangLabel: 'VI', targetLangLabel: 'RU', direction: 'VI → RU' };
+    }
+
+    async function processRecognizedText(text, forceFinal = true) {
+      const normalized = normalizeTranscript(text);
+      if (!normalized) return;
+      if (looksLikeNoise(normalized)) {
+        updateLivePreview('', 'unknown', 0, false);
+        setStatus('Шум пропущен');
+        setLog('Фон или неразборчивый сигнал пропущен');
+        return;
+      }
+
+      const info = detectLanguageDetailed(normalized);
+      updateLivePreview(normalized, info.language, info.confidence, !forceFinal ? false : true);
+      if (info.language === 'unknown') {
+        setStatus('Язык не подтверждён');
+        setLog('Возвращаю unknown: мало уверенности для ru/vi');
+        return;
+      }
+
+      const parts = splitIntoSafeSegments(normalized, info.language);
+      for (const part of parts) {
+        const partText = normalizeTranscript(part);
+        if (!partText || isDuplicateTranscript(partText)) continue;
+        const partInfo = detectLanguageDetailed(partText);
+        if (partInfo.language === 'unknown') continue;
+
+        const dir = getDirection(partInfo.language);
+        state.isBusyTranslating = true;
+        setStatus(`Перевод ${dir.direction}...`);
+        setLog(`Сегмент ${dir.direction}: ${partText}`);
+        try {
+          const translatedText = await translateText(partText, dir.sourceLang, dir.targetLang);
+          const moduleResult = makeModuleResult({ type: 'speech', language: partInfo.language, text: partText, translation: translatedText, is_final: true, confidence: partInfo.confidence });
+          appendEntry({
+            ts: Date.now(),
+            type: moduleResult.type,
+            language: moduleResult.language,
+            direction: dir.direction,
+            sourceLangLabel: dir.sourceLangLabel,
+            targetLangLabel: dir.targetLangLabel,
+            sourceText: moduleResult.text,
+            translatedText: moduleResult.translation,
+            is_final: moduleResult.is_final,
+            confidence: moduleResult.confidence,
+          });
+          setStatus(`Готово: ${dir.direction}`);
+          setLog(`Добавлена запись: ${dir.direction}`);
+        } catch (err) {
+          console.error(err);
+          setStatus('Ошибка перевода');
+          setLog('Ошибка перевода: ' + (err.message || err));
+        } finally {
+          state.isBusyTranslating = false;
+        }
+      }
+    }
+
+    async function setupAudioMonitor() {
+      if (state.audioStream) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1
+          }
+        });
+        const AudioContextCls = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCls) return;
+        const audioContext = new AudioContextCls();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.82;
+        source.connect(analyser);
+        state.audioStream = stream;
+        state.audioContext = audioContext;
+        state.analyser = analyser;
+        startVadLoop();
+      } catch (err) {
+        console.error(err);
+        setLog('VAD недоступен: ' + (err.message || err));
+      }
+    }
+
+    function startVadLoop() {
+      stopVadLoop();
+      if (!state.analyser) return;
+      const buf = new Float32Array(state.analyser.fftSize);
+      state.vadTimer = setInterval(() => {
+        try {
+          state.analyser.getFloatTimeDomainData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+          const rms = Math.sqrt(sum / buf.length);
+          state.rms = rms;
+          if (rms < state.noiseFloor * 1.15) state.noiseFloor = state.noiseFloor * 0.92 + rms * 0.08;
+          const threshold = Math.max(0.012, state.noiseFloor * 2.1);
+          if (rms >= threshold) {
+            state.speechFrames += 1;
+            state.silenceFrames = 0;
+          } else {
+            state.silenceFrames += 1;
+            if (state.silenceFrames > 1) state.speechFrames = Math.max(0, state.speechFrames - 1);
+          }
+          if (state.speechFrames >= 2) state.speechLikely = true;
+          if (state.silenceFrames >= 4) state.speechLikely = false;
+          setVadDisplay();
+        } catch (e) { console.error(e); }
+      }, 120);
+    }
+
+    function stopVadLoop() { if (state.vadTimer) clearInterval(state.vadTimer); state.vadTimer = null; }
+
+    async function releaseAudioMonitor() {
+      stopVadLoop();
+      if (state.audioStream) {
+        state.audioStream.getTracks().forEach(t => t.stop());
+        state.audioStream = null;
+      }
+      if (state.audioContext) {
+        try { await state.audioContext.close(); } catch {}
+        state.audioContext = null;
+      }
+      state.analyser = null;
+      state.speechLikely = false;
+      state.speechFrames = 0;
+      state.silenceFrames = 0;
+      setVadDisplay();
     }
 
     function nextCycleLanguage() {
@@ -656,12 +687,10 @@
       state.recognition = null;
     }
 
-    function scheduleRestart(delay = 260) {
+    function scheduleRestart(delay = 220) {
       clearTimeout(state.pendingRestart);
       if (!state.isListening || state.manualStop || document.hidden) return;
-      state.pendingRestart = setTimeout(() => {
-        startRecognitionCycle();
-      }, delay);
+      state.pendingRestart = setTimeout(() => startRecognitionCycle(), delay);
     }
 
     function startRecognitionCycle() {
@@ -680,7 +709,7 @@
       let interimText = '';
 
       rec.onstart = () => {
-        setLive(true, `Микрофон активен · SpeechRecognition: ${activeLang}`);
+        setLive(true, `Микрофон активен · ${activeLang}`);
         setStatus(`Слушаю (${activeLang})`);
         setLog(`Запуск цикла распознавания: ${activeLang}`);
       };
@@ -692,8 +721,11 @@
           if (event.results[i].isFinal) finalText += transcript + ' ';
           else interimText += transcript + ' ';
         }
-        const preview = normalizeTranscript(finalText || interimText);
-        if (preview) setStatus(`Распознано: ${preview.slice(0, 80)}`);
+        const previewText = normalizeTranscript(finalText || interimText);
+        if (!previewText || looksLikeNoise(previewText)) return;
+        const info = detectLanguageDetailed(previewText);
+        updateLivePreview(previewText, info.language, info.confidence, false);
+        setStatus(`Распознано: ${previewText.slice(0, 90)}`);
       };
 
       rec.onerror = (event) => {
@@ -705,46 +737,14 @@
           stopAllListening(true);
           return;
         }
-        if (err === 'audio-capture') {
-          setStatus('Микрофон не найден');
-        }
-        if (err === 'aborted') {
-          setStatus('Распознавание прервано');
-        }
+        if (err === 'audio-capture') setStatus('Микрофон не найден');
+        if (err === 'aborted') setStatus('Распознавание прервано');
       };
 
       rec.onend = async () => {
         const text = normalizeTranscript(finalText || interimText);
-        if (text && !state.isBusyTranslating && !isDuplicateTranscript(text)) {
-          state.isBusyTranslating = true;
-          try {
-            const detected = detectLanguage(text);
-            state.lastDetectedLanguage = detected;
-            const dir = getDirection(detected);
-            setStatus(`Перевод ${dir.direction}...`);
-            setLog(`Транскрибация готова, определён язык: ${dir.sourceLangLabel}`);
-            const translatedText = await translateText(text, dir.sourceLang, dir.targetLang);
-            appendEntry({
-              ts: Date.now(),
-              direction: dir.direction,
-              sourceLangLabel: dir.sourceLangLabel,
-              targetLangLabel: dir.targetLangLabel,
-              sourceText: text,
-              translatedText,
-            });
-            setStatus(`Готово: ${dir.direction}`);
-            setLog(`Добавлена запись: ${dir.direction}`);
-          } catch (err) {
-            console.error(err);
-            setStatus('Ошибка перевода');
-            setLog('Ошибка перевода: ' + (err.message || err));
-          } finally {
-            state.isBusyTranslating = false;
-            scheduleRestart(420);
-          }
-        } else {
-          scheduleRestart(240);
-        }
+        if (text && !state.isBusyTranslating) await processRecognizedText(text, true);
+        scheduleRestart(text ? 260 : 180);
       };
 
       try {
@@ -753,16 +753,6 @@
         setLog('Не удалось запустить распознавание: ' + (err.message || err));
         scheduleRestart(650);
       }
-    }
-
-    function stopAllListening(fromError = false) {
-      state.manualStop = true;
-      state.isListening = false;
-      clearTimeout(state.pendingRestart);
-      stopRecognitionInstance();
-      setLive(false, fromError ? 'Остановлено из-за ошибки' : 'Микрофон выключен');
-      if (!fromError) setStatus('Прослушивание остановлено');
-      updateButtons();
     }
 
     async function startAllListening() {
@@ -777,21 +767,31 @@
       state.manualStop = false;
       state.isListening = true;
       state.hasVisibilityPaused = false;
+      state.livePreview = null;
       setStatus('Запуск прослушивания...');
       updateButtons();
+      await setupAudioMonitor();
       startRecognitionCycle();
+    }
+
+    async function stopAllListening(fromError = false) {
+      state.manualStop = true;
+      state.isListening = false;
+      clearTimeout(state.pendingRestart);
+      stopRecognitionInstance();
+      state.livePreview = null;
+      renderHistory();
+      await releaseAudioMonitor();
+      setLive(false, fromError ? 'Остановлено из-за ошибки' : 'Микрофон выключен');
+      if (!fromError) setStatus('Прослушивание остановлено');
+      updateButtons();
     }
 
     function runButtonDiagnostics() {
       const report = [
-        ['Старт', !!els.startBtn],
-        ['Стоп', !!els.stopBtn],
-        ['Очистить ленту', !!els.clearFeedBtn],
-        ['Удалить историю', !!els.clearHistoryBtn],
-        ['Сохранить', !!els.saveConfigBtn],
-        ['Тест кнопок', !!els.testButtonsBtn],
-        ['Worker URL', !!els.workerUrl.value.trim()],
-        ['SpeechRecognition', state.supportsRecognition],
+        ['Старт', !!els.startBtn], ['Стоп', !!els.stopBtn], ['Очистить ленту', !!els.clearFeedBtn],
+        ['Удалить историю', !!els.clearHistoryBtn], ['Сохранить', !!els.saveConfigBtn], ['Тест кнопок', !!els.testButtonsBtn],
+        ['Worker URL', !!els.workerUrl.value.trim()], ['SpeechRecognition', state.supportsRecognition]
       ];
       const failed = report.filter(x => !x[1]);
       if (failed.length) {
@@ -827,33 +827,22 @@
     els.clearHistoryBtn.addEventListener('click', clearHistoryOnly);
     els.testButtonsBtn.addEventListener('click', runButtonDiagnostics);
     els.saveConfigBtn.addEventListener('click', () => saveConfig(false));
-    els.cycleSelect.addEventListener('change', () => {
-      applyCycleConfig();
-      saveConfig(true);
-      setLog('Конфигурация цикла языка обновлена');
-    });
+    els.cycleSelect.addEventListener('change', () => { applyCycleConfig(); saveConfig(true); setLog('Конфигурация цикла обновлена'); });
     els.workerUrl.addEventListener('change', () => saveConfig(true));
     els.workerUrl.addEventListener('blur', () => saveConfig(true));
 
     document.addEventListener('visibilitychange', handleHiddenState);
-    window.addEventListener('pagehide', () => {
-      if (state.isListening) {
-        clearTimeout(state.pendingRestart);
-        stopRecognitionInstance();
-      }
-    });
-    window.addEventListener('pageshow', () => {
-      if (state.isListening && !document.hidden) scheduleRestart(500);
-    });
-    window.addEventListener('beforeunload', () => {
-      if (state.isListening) stopAllListening(false);
-    });
+    window.addEventListener('pagehide', () => { if (state.isListening) { clearTimeout(state.pendingRestart); stopRecognitionInstance(); } });
+    window.addEventListener('pageshow', () => { if (state.isListening && !document.hidden) scheduleRestart(500); });
+    window.addEventListener('beforeunload', () => { if (state.isListening) stopAllListening(false); });
 
     function init() {
       els.versionBadge.textContent = APP_VERSION;
       loadConfig();
       loadHistory();
       updateButtons();
+      setVadDisplay();
+      setLangDisplay('unknown', 0);
       if (!state.supportsRecognition) {
         setStatus('SpeechRecognition не поддерживается в этом браузере');
         setLive(false, 'Web Speech API недоступен');
