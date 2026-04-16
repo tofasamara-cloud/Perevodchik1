@@ -182,8 +182,8 @@
   <div class="app">
     <section class="card">
       <h1>Карманный переводчик RU ↔ VI</h1>
-      <div class="sub">Улучшено быстрое переключение между русским и вьетнамским. Авто-режим теперь быстрее реагирует на смену языка в фильмах и диалогах, кнопки остаются нейтральными.</div>
-      <div class="version">Версия: v2.6-ru-vi-fast-switch • 2026-04-17</div>
+      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Улучшены фильтрация шума, подтверждение языка по устойчивым словам, короткая сегментация и более ранняя выдача перевода на безопасной границе.</div>
+      <div class="version">Версия: v2.7-ru-vi-stream-core • 2026-04-17</div>
     </section>
 
     <section class="card">
@@ -209,7 +209,8 @@
       <div class="pill"><span id="liveDot" class="dot"></span><span id="statusText">Ожидание запуска</span></div>
       <div class="pill"><span class="dot ok"></span><span id="recognizerText">Распознавание: —</span></div>
       <div class="pill"><span class="dot ok"></span><span id="detectedText">Определённый язык: —</span></div>
-      <div class="small">Авто-режим работает только для двух языков: русский и вьетнамский. Если сразу после одной фразы начинается второй язык, система старается быстро перезапустить распознавание на противоположном языке.</div>
+      <div class="pill"><span class="dot ok"></span><span id="confidenceText">Уверенность: 0.00</span></div>
+      <div class="small">Допустимы только ru, vi и unknown. Язык подтверждается по устойчивым признакам, шум не превращается в текст, а перевод отправляется на мягкой или жёсткой границе короткой фразы.</div>
     </section>
 
     <section class="card">
@@ -232,10 +233,10 @@
 
   <script>
     // ===== VERSION MARK =====
-    const APP_VERSION = 'v2.6-ru-vi-fast-switch';
+    const APP_VERSION = 'v2.7-ru-vi-stream-core';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-    const STORAGE_KEY = 'translator_feed_v26_ru_vi';
+    const STORAGE_KEY = 'translator_feed_v27_ru_vi';
 
     // ===== WEB SPEECH =====
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -265,29 +266,38 @@
     let activeRecognitionLang = 'ru';
     let lastDetectedLang = null;
     let preferredAutoLang = 'ru';
-    let finalBuffer = '';
+    let draftFinalText = '';
     let interimBuffer = '';
     let lastSpeechAt = 0;
     let autoSwitchTimer = null;
     let restartTimer = null;
-    let translateTimer = null;
+    let softBoundaryTimer = null;
+    let hardBoundaryTimer = null;
     let requestCounter = 0;
     let holdLanguageUntil = 0;
     let feed = [];
     let pendingFastSwitch = null;
     let switchCooldownUntil = 0;
+    let segmentSerial = 0;
+    let lastAnalysis = { lang: 'unknown', confidence: 0, tokensRu: 0, tokensVi: 0 };
 
     const LANG_META = {
       ru: { rec: 'ru-RU', label: 'Русский', target: 'vi', targetLabel: 'Вьетнамский' },
       vi: { rec: 'vi-VN', label: 'Tiếng Việt', target: 'ru', targetLabel: 'Русский' }
     };
 
-    const RU_HINTS = [
-      'и','что','это','как','привет','спасибо','пожалуйста','да','нет','хорошо','сегодня','завтра','где','когда','почему','можно'
-    ];
-    const VI_HINTS = [
-      'xin','chào','cảm','ơn','không','được','tôi','bạn','là','đi','đây','gì','sao','này','vâng','rồi','nhé','với'
-    ];
+    const RU_HINTS = ['и','что','это','как','привет','спасибо','пожалуйста','да','нет','хорошо','сегодня','завтра','где','когда','почему','можно','нужно','тебя','меня','сейчас','после','потом'];
+    const VI_HINTS = ['xin','chào','cảm','ơn','không','được','tôi','bạn','là','đi','đây','gì','sao','này','vâng','rồi','nhé','với','cho','đang','một','hai','ba'];
+    const RU_NON_BREAK = new Set(['и','а','но','или','что','если','когда','чтобы','потому','потому что','как','в','на','к','по','с','со','из','за','от','до','у','о','об','под','над','при']);
+    const VI_NON_BREAK = new Set(['và','nhưng','nếu','khi','vì','rằng','là','ở','với','cho','của','để','từ','mà','thì']);
+    const MIN_SPEECH_MS = 200;
+    const SOFT_BOUNDARY_MS = 360;
+    const HARD_BOUNDARY_MS = 650;
+    const SOFT_WORDS_MIN = 6;
+    const SOFT_WORDS_MAX = 10;
+    const HARD_WORDS_MAX = 15;
+
+    const confidenceText = document.getElementById('confidenceText');
 
     function setStatus(text, live = false) {
       statusText.textContent = text;
@@ -345,56 +355,154 @@
     }
 
     function clearCurrent() {
-      finalBuffer = '';
+      draftFinalText = '';
       interimBuffer = '';
       currentTranscript.textContent = '';
       currentTranslation.textContent = '';
+      clearTimeout(softBoundaryTimer);
+      clearTimeout(hardBoundaryTimer);
+      lastAnalysis = { lang: 'unknown', confidence: 0, tokensRu: 0, tokensVi: 0 };
+      updateConfidence(0);
     }
 
     function updateCurrentTranscript() {
-      currentTranscript.textContent = [finalBuffer.trim(), interimBuffer.trim()].filter(Boolean).join('\n');
+      currentTranscript.textContent = [draftFinalText.trim(), interimBuffer.trim()].filter(Boolean).join('\n');
+    }
+
+    function tokenize(text) {
+      return (text || '')
+        .toLowerCase()
+        .replace(/[.,!?;:()"“”'`~]/g, ' ')
+        .split(/\s+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function normalizeForMatch(text) {
+      return ` ${String(text || '').toLowerCase()} `.replace(/\s+/g, ' ');
     }
 
     function classifyRuVi(text) {
-      const t = (text || '').trim().toLowerCase();
-      if (!t) return { lang: null, scoreRu: 0, scoreVi: 0 };
+      const t = String(text || '').trim().toLowerCase();
+      if (!t) return { lang: 'unknown', confidence: 0, scoreRu: 0, scoreVi: 0, tokensRu: 0, tokensVi: 0 };
 
       let scoreRu = 0;
       let scoreVi = 0;
+      let tokensRu = 0;
+      let tokensVi = 0;
+      const norm = normalizeForMatch(t);
+      const words = tokenize(t);
 
-      if (/[а-яё]/i.test(t)) scoreRu += 8;
-      if (/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(t)) scoreVi += 10;
+      if (/[а-яё]/i.test(t)) {
+        scoreRu += 8;
+        tokensRu += 2;
+      }
+      const viMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(t);
+      if (viMarks) {
+        scoreVi += 10;
+        tokensVi += 2;
+      }
 
       for (const w of RU_HINTS) {
-        const matches = t.match(new RegExp(`(^|\\s)${w}(\\s|$)`, 'g'));
-        if (matches) scoreRu += matches.length * 2.2;
+        if (norm.includes(` ${w} `)) {
+          const count = norm.split(` ${w} `).length - 1;
+          scoreRu += count * 2.1;
+          tokensRu += count;
+        }
       }
       for (const w of VI_HINTS) {
-        const matches = t.match(new RegExp(`(^|\\s)${w}(\\s|$)`, 'g'));
-        if (matches) scoreVi += matches.length * 2.2;
+        if (norm.includes(` ${w} `)) {
+          const count = norm.split(` ${w} `).length - 1;
+          scoreVi += count * 2.1;
+          tokensVi += count;
+        }
       }
 
-      const latinChars = (t.match(/[a-z]/g) || []).length;
-      const cyrChars = (t.match(/[а-яё]/gi) || []).length;
-      if (latinChars > 0 && cyrChars === 0) scoreVi += 1.2;
-      if (cyrChars > 0) scoreRu += 1.5;
+      const latinOnly = (t.match(/[a-z]/g) || []).length > 0 && !(t.match(/[а-яё]/gi) || []).length;
+      if (latinOnly) scoreVi += 0.7;
 
-      let lang = null;
-      if (scoreRu >= scoreVi + 1.3) lang = 'ru';
-      else if (scoreVi >= scoreRu + 1.3) lang = 'vi';
+      if (words.length >= 2) {
+        if (tokensRu >= 2 && scoreRu >= scoreVi + 1.6) {
+          const conf = Math.min(0.98, 0.58 + Math.min(0.35, (scoreRu - scoreVi) / 12));
+          return { lang: 'ru', confidence: conf, scoreRu, scoreVi, tokensRu, tokensVi };
+        }
+        if (tokensVi >= 2 && scoreVi >= scoreRu + 1.6) {
+          const conf = Math.min(0.98, 0.58 + Math.min(0.35, (scoreVi - scoreRu) / 12));
+          return { lang: 'vi', confidence: conf, scoreRu, scoreVi, tokensRu, tokensVi };
+        }
+      }
 
-      return { lang, scoreRu, scoreVi };
+      if (/[а-яё]/i.test(t) && words.length >= 2) {
+        return { lang: 'ru', confidence: 0.72, scoreRu, scoreVi, tokensRu: Math.max(tokensRu, 2), tokensVi };
+      }
+      if (viMarks && words.length >= 2) {
+        return { lang: 'vi', confidence: 0.78, scoreRu, scoreVi, tokensRu, tokensVi: Math.max(tokensVi, 2) };
+      }
+
+      return { lang: 'unknown', confidence: 0.18, scoreRu, scoreVi, tokensRu, tokensVi };
     }
 
+    function updateConfidence(value) {
+      confidenceText.textContent = `Уверенность: ${Number(value || 0).toFixed(2)}`;
+    }
+
+    function isNoiseLike(text) {
+      const raw = String(text || '').trim();
+      if (!raw) return true;
+      const words = tokenize(raw);
+      if (!words.length) return true;
+      if (raw.length <= 2) return true;
+      if (/^[\W_\d]+$/.test(raw)) return true;
+      const uniqueLetters = new Set(raw.toLowerCase().replace(/[^a-zа-яёăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/g, '').split(''));
+      if (words.length === 1 && raw.length < 4 && uniqueLetters.size <= 2) return true;
+      return false;
+    }
+
+    function lastWords(text, n = 2) {
+      const w = tokenize(text);
+      return w.slice(-n);
+    }
+
+    function endsWithNonBreak(text, lang) {
+      const tail2 = lastWords(text, 2).join(' ');
+      const tail1 = lastWords(text, 1)[0] || '';
+      if (lang === 'ru') return RU_NON_BREAK.has(tail2) || RU_NON_BREAK.has(tail1);
+      if (lang === 'vi') return VI_NON_BREAK.has(tail2) || VI_NON_BREAK.has(tail1);
+      return false;
+    }
+
+    function isSafeBoundary(text, lang, force = false) {
+      const words = tokenize(text);
+      if (!words.length) return false;
+      if (!force && words.length < 2) return false;
+      if (!force && endsWithNonBreak(text, lang)) return false;
+      if (/\d+[.,]?\d*$/.test(text.trim())) return false;
+      return true;
+    }
+
+    function analyzeDraft() {
+      const fullText = [draftFinalText, interimBuffer].filter(Boolean).join(' ').trim();
+      const analysis = classifyRuVi(fullText || draftFinalText || interimBuffer);
+      if (analysis.lang !== 'unknown') {
+        lastDetectedLang = analysis.lang;
+        if (autoMode) preferredAutoLang = analysis.lang;
+        if (analysis.confidence >= 0.7) holdLanguageUntil = Date.now() + 900;
+      }
+      lastAnalysis = analysis;
+      syncLanguageLabels(analysis.lang === 'unknown' ? null : analysis.lang);
+      updateConfidence(analysis.confidence);
+      return analysis;
+    }
 
     function isStrongOppositeSignal(text, currentLang) {
       const guess = classifyRuVi(text);
-      if (!guess.lang || guess.lang === currentLang) return null;
+      if (guess.lang === 'unknown' || guess.lang === currentLang) return null;
       const delta = Math.abs(guess.scoreRu - guess.scoreVi);
       const hasViMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(text || '');
       const hasCyr = /[а-яё]/i.test(text || '');
-      if (currentLang === 'ru' && guess.lang === 'vi' && (hasViMarks || delta >= 3.2)) return guess.lang;
-      if (currentLang === 'vi' && guess.lang === 'ru' && (hasCyr || delta >= 3.2)) return guess.lang;
+      if (guess.confidence < 0.72) return null;
+      if (currentLang === 'ru' && guess.lang === 'vi' && (hasViMarks || delta >= 3.0)) return guess.lang;
+      if (currentLang === 'vi' && guess.lang === 'ru' && (hasCyr || delta >= 3.0)) return guess.lang;
       return null;
     }
 
@@ -403,7 +511,7 @@
       if (!autoMode || !isRunning) return;
       if (!nextLang || nextLang === activeRecognitionLang) return;
       if (now < switchCooldownUntil) return;
-      switchCooldownUntil = now + 1800;
+      switchCooldownUntil = now + 1400;
       pendingFastSwitch = nextLang;
       preferredAutoLang = nextLang;
       holdLanguageUntil = 0;
@@ -416,13 +524,13 @@
         } catch {
           startRecognitionCycle();
         }
-      }, 90);
+      }, 70);
     }
 
     function shouldSwitchAutoLanguage() {
       const now = Date.now();
       if (now < holdLanguageUntil) return false;
-      if (now - lastSpeechAt < 2400) return false;
+      if (now - lastSpeechAt < 1200) return false;
       return true;
     }
 
@@ -440,10 +548,52 @@
     function syncLanguageLabels(detected) {
       recognizerText.textContent = `Распознавание: ${LANG_META[activeRecognitionLang].label} (${LANG_META[activeRecognitionLang].rec})`;
       if (!detected) {
-        detectedText.textContent = 'Определённый язык: —';
+        detectedText.textContent = 'Определённый язык: unknown';
       } else {
         detectedText.textContent = `Определённый язык: ${LANG_META[detected].label}`;
       }
+    }
+
+    function scheduleBoundaryChecks() {
+      clearTimeout(softBoundaryTimer);
+      clearTimeout(hardBoundaryTimer);
+      softBoundaryTimer = setTimeout(() => finalizeSegmentIfReady(false), SOFT_BOUNDARY_MS);
+      hardBoundaryTimer = setTimeout(() => finalizeSegmentIfReady(true), HARD_BOUNDARY_MS);
+    }
+
+    function finalizeSegmentIfReady(force = false) {
+      const text = draftFinalText.trim();
+      if (!text) return;
+      const analysis = analyzeDraft();
+      const words = tokenize(text);
+      const lang = autoMode ? analysis.lang : (analysis.lang === 'unknown' ? manualLang : analysis.lang);
+      const canTranslate = lang === 'ru' || lang === 'vi';
+
+      if (!canTranslate) {
+        setStatus('Жду подтверждения языка…', true);
+        return;
+      }
+
+      const enoughForSoft = words.length >= SOFT_WORDS_MIN && words.length <= SOFT_WORDS_MAX;
+      const enoughForHard = words.length >= 2 && (force || words.length >= HARD_WORDS_MAX);
+      const boundaryOk = isSafeBoundary(text, lang, force || words.length >= 12);
+
+      if ((enoughForSoft && boundaryOk) || (enoughForHard && boundaryOk)) {
+        emitSegment(text, lang, force);
+      }
+    }
+
+    function emitSegment(text, sourceLang, isForced) {
+      const cleaned = String(text || '').trim();
+      if (!cleaned) return;
+      const serial = ++segmentSerial;
+      currentTranscript.textContent = cleaned;
+      setStatus(isForced ? 'Жёсткая граница, перевожу…' : 'Безопасная граница, перевожу…', true);
+      translateText(cleaned, sourceLang, serial, true);
+      draftFinalText = '';
+      interimBuffer = '';
+      updateCurrentTranscript();
+      scheduleBoundaryChecks();
     }
 
     function createRecognition(langCode) {
@@ -464,51 +614,49 @@
         setStatus(`Слушаю: ${LANG_META[langCode].label}`, true);
       };
 
-      rec.onresult = async (event) => {
-        lastSpeechAt = Date.now();
+      rec.onresult = (event) => {
+        const now = Date.now();
+        lastSpeechAt = now;
         interimBuffer = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const res = event.results[i];
           const text = (res[0]?.transcript || '').trim();
-          if (!text) continue;
+          if (!text || isNoiseLike(text)) continue;
 
           if (res.isFinal) {
-            finalBuffer = `${finalBuffer} ${text}`.trim();
-            const guess = classifyRuVi(finalBuffer);
-            const detected = guess.lang || langCode;
-            lastDetectedLang = detected;
-            preferredAutoLang = detected;
-            holdLanguageUntil = Date.now() + 1800;
-            syncLanguageLabels(detected);
-            updateCurrentTranscript();
-            debouncedTranslate(finalBuffer, detected);
+            draftFinalText = `${draftFinalText} ${text}`.trim();
           } else {
             interimBuffer += (interimBuffer ? ' ' : '') + text;
           }
         }
 
-        const combined = [finalBuffer, interimBuffer].filter(Boolean).join(' ').trim();
-        const liveGuess = classifyRuVi(combined);
-        if (liveGuess.lang && liveGuess.lang !== lastDetectedLang) {
-          lastDetectedLang = liveGuess.lang;
-          preferredAutoLang = liveGuess.lang;
-          syncLanguageLabels(liveGuess.lang);
-        }
-
-        const strongOpposite = isStrongOppositeSignal(combined, activeRecognitionLang);
-        if (strongOpposite) {
-          triggerFastAutoSwitch(strongOpposite, `Быстрое переключение на ${LANG_META[strongOpposite].label}`);
-          return;
+        const combined = [draftFinalText, interimBuffer].filter(Boolean).join(' ').trim();
+        if (combined && (now - lastSpeechAt) >= 0) {
+          const analysis = analyzeDraft();
+          const strongOpposite = isStrongOppositeSignal(combined, activeRecognitionLang);
+          if (strongOpposite) {
+            triggerFastAutoSwitch(strongOpposite, `Быстрое переключение на ${LANG_META[strongOpposite].label}`);
+            return;
+          }
+          if (analysis.lang === 'unknown' && autoMode) {
+            setStatus('Речь не подтверждена или язык неясен', true);
+          }
         }
 
         updateCurrentTranscript();
+        scheduleBoundaryChecks();
+
+        const finalWords = tokenize(draftFinalText);
+        if (finalWords.length >= HARD_WORDS_MAX && isSafeBoundary(draftFinalText, lastAnalysis.lang === 'unknown' ? activeRecognitionLang : lastAnalysis.lang, true)) {
+          finalizeSegmentIfReady(true);
+        }
       };
 
       rec.onerror = (event) => {
         const err = event.error || 'unknown';
         if (err === 'no-speech') {
-          setStatus(`Тишина, пробую ${autoMode ? 'другой язык' : 'ещё раз'}`, false);
+          setStatus('Шум или тишина, речи нет', false);
         } else if (err === 'language-not-supported') {
           setStatus('Язык распознавания не поддерживается браузером', false);
         } else if (err === 'not-allowed') {
@@ -523,6 +671,8 @@
           setStatus('Остановлено', false);
           return;
         }
+
+        finalizeSegmentIfReady(true);
 
         if (pendingFastSwitch) {
           preferredAutoLang = pendingFastSwitch;
@@ -544,7 +694,7 @@
       clearTimeout(restartTimer);
       restartTimer = setTimeout(() => {
         startRecognitionCycle();
-      }, 260);
+      }, 180);
     }
 
     function startRecognitionCycle() {
@@ -566,19 +716,19 @@
       }
     }
 
-    async function translateText(text, sourceLang) {
+    async function translateText(text, sourceLang, serial = 0, isFinal = false) {
       const cleaned = (text || '').trim();
-      if (!cleaned) {
-        currentTranslation.textContent = '';
+      if (!cleaned || !(sourceLang in LANG_META)) {
+        currentTranslation.textContent = sourceLang === 'unknown' ? 'Язык не подтверждён' : '';
         return;
       }
 
       const reqId = ++requestCounter;
-      currentTranslation.textContent = 'Перевожу…';
+      currentTranslation.textContent = isFinal ? 'Перевожу…' : 'Предварительный перевод…';
 
       const targetLang = LANG_META[sourceLang].target;
-      const source = sourceLang === 'ru' ? 'ru' : 'vi';
-      const target = targetLang === 'ru' ? 'ru' : 'vi';
+      const source = sourceLang;
+      const target = targetLang;
 
       try {
         const response = await fetch(WORKER_URL, {
@@ -594,28 +744,23 @@
 
         currentTranslation.textContent = translation || 'Перевод не получен';
 
-        if (translation) {
+        if (translation && isFinal) {
           pushFeed({
             text: cleaned,
             translation,
             lang: sourceLang,
             langLabel: LANG_META[sourceLang].label,
             targetLabel: LANG_META[sourceLang].targetLabel,
-            time: formatTime()
+            time: formatTime(),
+            is_final: true,
+            confidence: Number(lastAnalysis.confidence || 0).toFixed(2),
+            serial
           });
-          finalBuffer = '';
-          interimBuffer = '';
-          updateCurrentTranscript();
         }
       } catch (error) {
         if (reqId !== requestCounter) return;
         currentTranslation.textContent = 'Ошибка перевода. Проверьте Worker URL и сеть.';
       }
-    }
-
-    function debouncedTranslate(text, sourceLang) {
-      clearTimeout(translateTimer);
-      translateTimer = setTimeout(() => translateText(text, sourceLang), 700);
     }
 
     function pushFeed(item) {
@@ -648,7 +793,6 @@
       isStopping = true;
       clearInterval(autoSwitchTimer);
       clearTimeout(restartTimer);
-      clearTimeout(translateTimer);
       try {
         recognition && recognition.stop();
       } catch {}
@@ -661,7 +805,7 @@
     modeAutoBtn.addEventListener('click', () => {
       autoMode = true;
       setButtons();
-      preferredAutoLang = lastDetectedLang || 'ru';
+      preferredAutoLang = lastDetectedLang && lastDetectedLang !== 'unknown' ? lastDetectedLang : 'ru';
       if (isRunning) startRecognitionCycle();
     });
 
