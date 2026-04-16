@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RU↔VI" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>RU ↔ VI Voice Translator</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: rgba(15, 23, 42, 0.8);
+      --panel-2: rgba(30, 41, 59, 0.74);
+      --line: rgba(148, 163, 184, 0.18);
+      --text: #e5eef9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --danger: #fb7185;
+      --warn: #f59e0b;
+      --shadow: 0 18px 60px rgba(0,0,0,.35);
+      --radius: 22px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    html {
+      background: #08111f;
+      height: 100%;
+      overscroll-behavior-y: none;
+      -webkit-text-size-adjust: 100%;
+    }
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: radial-gradient(circle at top, #102448 0, #08111f 46%, #050b14 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    input, select, button {
+      font: inherit;
+    }
+    .app {
+      max-width: 880px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: calc(16px + var(--safe-top)) 14px calc(24px + var(--safe-bottom));
+      display: grid;
+      gap: 14px;
+    }
+    .card {
+      background: var(--panel);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .hero {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      background: linear-gradient(180deg, rgba(56,189,248,.12), rgba(34,197,94,.08));
+    }
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+    .version {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,.04);
+      white-space: nowrap;
+    }
+    .subtitle {
+      color: var(--muted);
+      line-height: 1.38;
+      font-size: 14px;
+    }
+    .statusbar, .toolbar-grid, .button-row {
+      display: grid;
+      gap: 10px;
+    }
+    .statusbar, .toolbar-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .button-row {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .pillbox {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .value {
+      font-weight: 700;
+      font-size: 15px;
+      word-break: break-word;
+    }
+    .toolbar {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      position: sticky;
+      top: calc(8px + var(--safe-top));
+      z-index: 3;
+    }
+    .field-input,
+    button,
+    select {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      border-radius: 18px;
+      min-height: 54px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 700;
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .field-input::placeholder {
+      color: #89a0bb;
+    }
+    button {
+      cursor: pointer;
+    }
+    button.primary { background: linear-gradient(180deg, rgba(56,189,248,.25), rgba(56,189,248,.12)); }
+    button.good { background: linear-gradient(180deg, rgba(34,197,94,.22), rgba(34,197,94,.10)); }
+    button.warn { background: linear-gradient(180deg, rgba(245,158,11,.20), rgba(245,158,11,.08)); }
+    button.danger { background: linear-gradient(180deg, rgba(251,113,133,.20), rgba(251,113,133,.08)); }
+    button:disabled, select:disabled, input:disabled {
+      opacity: .45;
+      cursor: default;
+    }
+    .mic-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+      box-shadow: 0 0 0 0 rgba(34,197,94,.6);
+      flex: 0 0 auto;
+    }
+    .dot.live {
+      background: var(--accent-2);
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+      70% { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+    .feed-wrap {
+      padding: 0 14px 14px;
+    }
+    .feed-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 2px 10px;
+      flex-wrap: wrap;
+    }
+    .feed {
+      display: grid;
+      gap: 10px;
+      max-height: 56vh;
+      overflow: auto;
+      padding-right: 2px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .bubble {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 18px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .bubble-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .dir {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+    }
+    .time { font-size: 12px; color: var(--muted); }
+    .segment {
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(148,163,184,.12);
+    }
+    .segment .small {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .segment .text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+    .footer-note {
+      padding: 12px 14px 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+    .logline { font-size: 13px; color: var(--muted); min-height: 18px; }
+    .empty {
+      padding: 24px 14px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 18px;
+    }
+    @media (max-width: 680px) {
+      .statusbar, .toolbar-grid, .button-row {
+        grid-template-columns: 1fr;
+      }
+      .app {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      .toolbar {
+        top: calc(6px + var(--safe-top));
+      }
+      .feed {
+        max-height: none;
+      }
+      .brand {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card hero">
+      <div class="topline">
+        <div class="brand">RU ↔ VI Voice Translator</div>
+        <div class="version" id="versionBadge">v2.2-ios-pwa-auto-ru-vi</div>
+      </div>
+      <div class="subtitle">
+        iPhone PWA версия: автоцикл распознавания, автоопределение RU/VI по тексту, транскрибация и перевод в противоположный язык. Исправлены очистка истории, дубли, перезапуски и обработка скрытия вкладки.
+      </div>
+      <div class="statusbar">
+        <div class="pillbox">
+          <div class="label">Статус</div>
+          <div class="value" id="statusText">Готово к запуску</div>
+        </div>
+        <div class="pillbox">
+          <div class="label">Режим распознавания</div>
+          <div class="value" id="modeText">AUTO: RU → VI / VI → RU</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card toolbar">
+      <div class="toolbar-grid">
+        <div>
+          <div class="label">Cloudflare Worker</div>
+          <input id="workerUrl" class="field-input" type="text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" value="https://square-cloud-e319.tofasamara.workers.dev" />
+        </div>
+        <div>
+          <div class="label">Авто-цикл языка для SpeechRecognition</div>
+          <select id="cycleSelect">
+            <option value="ru-RU,vi-VN">Сначала RU, затем VI</option>
+            <option value="vi-VN,ru-RU">Сначала VI, затем RU</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="startBtn" class="primary">🎙️ Старт</button>
+        <button id="stopBtn" class="warn" disabled>⏹️ Стоп</button>
+        <button id="clearFeedBtn" class="danger">🧹 Очистить ленту</button>
+      </div>
+
+      <div class="button-row">
+        <button id="clearHistoryBtn">🗑️ Удалить историю</button>
+        <button id="testButtonsBtn">🧪 Тест кнопок</button>
+        <button id="saveConfigBtn" class="good">💾 Сохранить</button>
+      </div>
+
+      <div class="mic-live">
+        <span class="dot" id="liveDot"></span>
+        <span id="liveText">Микрофон выключен</span>
+      </div>
+      <div class="logline" id="logText">Лог: ожидание действий.</div>
+    </section>
+
+    <section class="card">
+      <div class="feed-wrap">
+        <div class="feed-head">
+          <div style="font-weight:800">Лента диалога</div>
+          <div class="time" id="historyMeta">0 записей</div>
+        </div>
+        <div id="feed" class="feed"></div>
+      </div>
+      <div class="footer-note">
+        Важно: Safari/iPhone может останавливать распознавание при сворачивании PWA или блокировке экрана. В этом index добавлена безопасная остановка, чтобы не было зависших состояний и ложных перезапусков.
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const APP_VERSION = 'v2.2-ios-pwa-auto-ru-vi';
+    const STORAGE_KEY = 'translator_ru_vi_history_v2_2';
+    const CONFIG_KEY = 'translator_ru_vi_config_v2_2';
+
+    const els = {
+      versionBadge: document.getElementById('versionBadge'),
+      statusText: document.getElementById('statusText'),
+      modeText: document.getElementById('modeText'),
+      workerUrl: document.getElementById('workerUrl'),
+      cycleSelect: document.getElementById('cycleSelect'),
+      startBtn: document.getElementById('startBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      clearFeedBtn: document.getElementById('clearFeedBtn'),
+      clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+      testButtonsBtn: document.getElementById('testButtonsBtn'),
+      saveConfigBtn: document.getElementById('saveConfigBtn'),
+      liveDot: document.getElementById('liveDot'),
+      liveText: document.getElementById('liveText'),
+      logText: document.getElementById('logText'),
+      feed: document.getElementById('feed'),
+      historyMeta: document.getElementById('historyMeta'),
+    };
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const state = {
+      isListening: false,
+      recognition: null,
+      cycleLangs: ['ru-RU', 'vi-VN'],
+      currentCycleIndex: 0,
+      history: [],
+      feedHidden: false,
+      manualStop: false,
+      isBusyTranslating: false,
+      pendingRestart: null,
+      lastDetectedLanguage: null,
+      lastFinalTranscript: '',
+      lastFinalAt: 0,
+      supportsRecognition: !!SpeechRecognition,
+      hasVisibilityPaused: false,
+    };
+
+    function setStatus(text) {
+      els.statusText.textContent = text;
+    }
+
+    function setLog(text) {
+      els.logText.textContent = 'Лог: ' + text;
+    }
+
+    function setLive(active, text) {
+      els.liveDot.classList.toggle('live', !!active);
+      els.liveText.textContent = text;
+    }
+
+    function updateButtons() {
+      els.startBtn.disabled = !state.supportsRecognition || state.isListening;
+      els.stopBtn.disabled = !state.isListening;
+      els.clearFeedBtn.disabled = state.history.length === 0 && !state.feedHidden;
+      els.clearHistoryBtn.disabled = state.history.length === 0;
+    }
+
+    function pluralize(n, forms) {
+      const m10 = n % 10;
+      const m100 = n % 100;
+      if (m10 === 1 && m100 !== 11) return forms[0];
+      if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return forms[1];
+      return forms[2];
+    }
+
+    function updateHistoryMeta() {
+      const hiddenSuffix = state.feedHidden ? ' · лента скрыта' : '';
+      els.historyMeta.textContent = `${state.history.length} ${pluralize(state.history.length, ['запись', 'записи', 'записей'])}${hiddenSuffix}`;
+    }
+
+    function saveConfig(silent = false) {
+      const data = {
+        workerUrl: els.workerUrl.value.trim(),
+        cycleSelect: els.cycleSelect.value,
+        version: APP_VERSION,
+      };
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(data));
+      if (!silent) {
+        setLog('Настройки сохранены');
+        setStatus('Настройки сохранены');
+      }
+    }
+
+    function loadConfig() {
+      try {
+        const cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+        if (cfg.workerUrl) els.workerUrl.value = cfg.workerUrl;
+        if (cfg.cycleSelect) els.cycleSelect.value = cfg.cycleSelect;
+      } catch (err) {
+        console.error(err);
+      }
+      applyCycleConfig();
+    }
+
+    function applyCycleConfig() {
+      state.cycleLangs = (els.cycleSelect.value || 'ru-RU,vi-VN')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+      els.modeText.textContent = state.cycleLangs[0] === 'vi-VN'
+        ? 'AUTO: VI → RU / RU → VI'
+        : 'AUTO: RU → VI / VI → RU';
+    }
+
+    function saveHistory() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history));
+      updateButtons();
+      updateHistoryMeta();
+    }
+
+    function loadHistory() {
+      try {
+        state.history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (!Array.isArray(state.history)) state.history = [];
+      } catch {
+        state.history = [];
+      }
+      renderHistory();
+      updateButtons();
+      updateHistoryMeta();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatTime(ts) {
+      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function renderHistory() {
+      if (state.feedHidden) {
+        els.feed.innerHTML = '<div class="empty">Лента очищена только на экране. История сохранена и вернётся после перезагрузки или новой записи.</div>';
+        updateButtons();
+        updateHistoryMeta();
+        return;
+      }
+
+      if (!state.history.length) {
+        els.feed.innerHTML = '<div class="empty">Лента пустая. Нажмите «Старт», скажите фразу на русском или вьетнамском.</div>';
+        return;
+      }
+
+      els.feed.innerHTML = state.history.slice().reverse().map(item => `
+        <article class="bubble">
+          <div class="bubble-head">
+            <div class="dir">${escapeHtml(item.direction)}</div>
+            <div class="time">${formatTime(item.ts)}</div>
+          </div>
+          <div class="segment">
+            <div class="small">Транскрибация (${escapeHtml(item.sourceLangLabel)})</div>
+            <div class="text">${escapeHtml(item.sourceText)}</div>
+          </div>
+          <div class="segment">
+            <div class="small">Перевод (${escapeHtml(item.targetLangLabel)})</div>
+            <div class="text">${escapeHtml(item.translatedText)}</div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function appendEntry(entry) {
+      state.feedHidden = false;
+      state.history.push(entry);
+      saveHistory();
+      renderHistory();
+      requestAnimationFrame(() => {
+        els.feed.scrollTop = 0;
+      });
+    }
+
+    function clearFeedOnly() {
+      state.feedHidden = true;
+      renderHistory();
+      setLog('Лента очищена только на экране');
+      setStatus('Лента очищена');
+    }
+
+    function clearHistoryOnly() {
+      state.history = [];
+      state.feedHidden = false;
+      localStorage.removeItem(STORAGE_KEY);
+      renderHistory();
+      updateButtons();
+      updateHistoryMeta();
+      setLog('История полностью удалена');
+      setStatus('История удалена');
+    }
+
+    function detectLanguage(text) {
+      const s = String(text || '').trim();
+      const lower = s.toLowerCase();
+      const cyrillic = (s.match(/[А-Яа-яЁё]/g) || []).length;
+      const vietnameseMarks = (s.match(/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/gi) || []).length;
+      const latin = (s.match(/[A-Za-z]/g) || []).length;
+      const vnWords = ['xin chào','cảm ơn','không','được','tôi','bạn','muốn','đi','ăn','uống','bao nhiêu','hôm nay'];
+      const ruWords = ['привет','спасибо','пожалуйста','как','что','где','сегодня','можно','нужно','хочу'];
+      const vnHits = vnWords.reduce((acc, w) => acc + (lower.includes(w) ? 1 : 0), 0);
+      const ruHits = ruWords.reduce((acc, w) => acc + (lower.includes(w) ? 1 : 0), 0);
+
+      if (cyrillic > 1 || ruHits > vnHits + 1) return 'ru';
+      if (vietnameseMarks > 0 || vnHits > ruHits) return 'vi';
+      if (latin > 0 && state.lastDetectedLanguage) return state.lastDetectedLanguage;
+      return state.lastDetectedLanguage || 'ru';
+    }
+
+    function getDirection(lang) {
+      if (lang === 'ru') {
+        return {
+          sourceLang: 'ru',
+          targetLang: 'vi',
+          sourceLangLabel: 'RU',
+          targetLangLabel: 'VI',
+          direction: 'RU → VI'
+        };
+      }
+      return {
+        sourceLang: 'vi',
+        targetLang: 'ru',
+        sourceLangLabel: 'VI',
+        targetLangLabel: 'RU',
+        direction: 'VI → RU'
+      };
+    }
+
+    function normalizeTranscript(text) {
+      return String(text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function isDuplicateTranscript(text) {
+      const normalized = normalizeTranscript(text).toLowerCase();
+      if (!normalized) return true;
+      const now = Date.now();
+      const duplicate = normalized === state.lastFinalTranscript && now - state.lastFinalAt < 5000;
+      state.lastFinalTranscript = normalized;
+      state.lastFinalAt = now;
+      return duplicate;
+    }
+
+    async function translateText(text, sourceLang, targetLang) {
+      const url = els.workerUrl.value.trim();
+      if (!url) throw new Error('Не указан Worker URL');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const payloads = [
+        { text, source: sourceLang, target: targetLang },
+        { text, source_lang: sourceLang, target_lang: targetLang },
+        { q: text, source: sourceLang, target: targetLang },
+      ];
+
+      let lastError = null;
+      for (const payload of payloads) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json().catch(() => ({}));
+          const translated = data.translatedText || data.translation || data.translated || data.result || data.text || '';
+          if (translated) {
+            clearTimeout(timeoutId);
+            return String(translated).trim();
+          }
+          throw new Error('Пустой ответ от переводчика');
+        } catch (err) {
+          lastError = err;
+          if (controller.signal.aborted) break;
+        }
+      }
+      clearTimeout(timeoutId);
+      if (controller.signal.aborted) throw new Error('Таймаут перевода');
+      throw lastError || new Error('Ошибка перевода');
+    }
+
+    function nextCycleLanguage() {
+      const lang = state.cycleLangs[state.currentCycleIndex] || 'ru-RU';
+      state.currentCycleIndex = (state.currentCycleIndex + 1) % state.cycleLangs.length;
+      return lang;
+    }
+
+    function stopRecognitionInstance() {
+      if (state.recognition) {
+        try { state.recognition.onresult = null; } catch {}
+        try { state.recognition.onerror = null; } catch {}
+        try { state.recognition.onend = null; } catch {}
+        try { state.recognition.stop(); } catch {}
+      }
+      state.recognition = null;
+    }
+
+    function scheduleRestart(delay = 260) {
+      clearTimeout(state.pendingRestart);
+      if (!state.isListening || state.manualStop || document.hidden) return;
+      state.pendingRestart = setTimeout(() => {
+        startRecognitionCycle();
+      }, delay);
+    }
+
+    function startRecognitionCycle() {
+      if (!state.supportsRecognition || !state.isListening || state.manualStop || document.hidden) return;
+      stopRecognitionInstance();
+
+      const rec = new SpeechRecognition();
+      const activeLang = nextCycleLanguage();
+      state.recognition = rec;
+      rec.lang = activeLang;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.continuous = false;
+
+      let finalText = '';
+      let interimText = '';
+
+      rec.onstart = () => {
+        setLive(true, `Микрофон активен · SpeechRecognition: ${activeLang}`);
+        setStatus(`Слушаю (${activeLang})`);
+        setLog(`Запуск цикла распознавания: ${activeLang}`);
+      };
+
+      rec.onresult = (event) => {
+        interimText = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript || '';
+          if (event.results[i].isFinal) finalText += transcript + ' ';
+          else interimText += transcript + ' ';
+        }
+        const preview = normalizeTranscript(finalText || interimText);
+        if (preview) setStatus(`Распознано: ${preview.slice(0, 80)}`);
+      };
+
+      rec.onerror = (event) => {
+        const err = event?.error || 'unknown';
+        setLog(`Ошибка распознавания: ${err}`);
+        if (err === 'not-allowed') {
+          setStatus('Нет доступа к микрофону');
+          setLive(false, 'Доступ к микрофону отклонён');
+          stopAllListening(true);
+          return;
+        }
+        if (err === 'audio-capture') {
+          setStatus('Микрофон не найден');
+        }
+        if (err === 'aborted') {
+          setStatus('Распознавание прервано');
+        }
+      };
+
+      rec.onend = async () => {
+        const text = normalizeTranscript(finalText || interimText);
+        if (text && !state.isBusyTranslating && !isDuplicateTranscript(text)) {
+          state.isBusyTranslating = true;
+          try {
+            const detected = detectLanguage(text);
+            state.lastDetectedLanguage = detected;
+            const dir = getDirection(detected);
+            setStatus(`Перевод ${dir.direction}...`);
+            setLog(`Транскрибация готова, определён язык: ${dir.sourceLangLabel}`);
+            const translatedText = await translateText(text, dir.sourceLang, dir.targetLang);
+            appendEntry({
+              ts: Date.now(),
+              direction: dir.direction,
+              sourceLangLabel: dir.sourceLangLabel,
+              targetLangLabel: dir.targetLangLabel,
+              sourceText: text,
+              translatedText,
+            });
+            setStatus(`Готово: ${dir.direction}`);
+            setLog(`Добавлена запись: ${dir.direction}`);
+          } catch (err) {
+            console.error(err);
+            setStatus('Ошибка перевода');
+            setLog('Ошибка перевода: ' + (err.message || err));
+          } finally {
+            state.isBusyTranslating = false;
+            scheduleRestart(420);
+          }
+        } else {
+          scheduleRestart(240);
+        }
+      };
+
+      try {
+        rec.start();
+      } catch (err) {
+        setLog('Не удалось запустить распознавание: ' + (err.message || err));
+        scheduleRestart(650);
+      }
+    }
+
+    function stopAllListening(fromError = false) {
+      state.manualStop = true;
+      state.isListening = false;
+      clearTimeout(state.pendingRestart);
+      stopRecognitionInstance();
+      setLive(false, fromError ? 'Остановлено из-за ошибки' : 'Микрофон выключен');
+      if (!fromError) setStatus('Прослушивание остановлено');
+      updateButtons();
+    }
+
+    async function startAllListening() {
+      if (!state.supportsRecognition) {
+        setStatus('SpeechRecognition не поддерживается');
+        setLog('Этот браузер не поддерживает Web Speech API');
+        return;
+      }
+      if (state.isListening) return;
+      saveConfig(true);
+      applyCycleConfig();
+      state.manualStop = false;
+      state.isListening = true;
+      state.hasVisibilityPaused = false;
+      setStatus('Запуск прослушивания...');
+      updateButtons();
+      startRecognitionCycle();
+    }
+
+    function runButtonDiagnostics() {
+      const report = [
+        ['Старт', !!els.startBtn],
+        ['Стоп', !!els.stopBtn],
+        ['Очистить ленту', !!els.clearFeedBtn],
+        ['Удалить историю', !!els.clearHistoryBtn],
+        ['Сохранить', !!els.saveConfigBtn],
+        ['Тест кнопок', !!els.testButtonsBtn],
+        ['Worker URL', !!els.workerUrl.value.trim()],
+        ['SpeechRecognition', state.supportsRecognition],
+      ];
+      const failed = report.filter(x => !x[1]);
+      if (failed.length) {
+        setStatus('Тест кнопок: есть замечания');
+        setLog('Проблемы: ' + failed.map(x => x[0]).join(', '));
+      } else {
+        setStatus('Тест кнопок: OK');
+        setLog('Все основные кнопки и связи доступны');
+      }
+    }
+
+    function handleHiddenState() {
+      if (document.hidden) {
+        if (state.isListening) {
+          state.hasVisibilityPaused = true;
+          clearTimeout(state.pendingRestart);
+          stopRecognitionInstance();
+          setStatus('PWA скрыта: прослушивание приостановлено');
+          setLive(false, 'Пауза: приложение скрыто');
+        }
+        return;
+      }
+      if (state.isListening && state.hasVisibilityPaused) {
+        state.hasVisibilityPaused = false;
+        setStatus('Возврат в приложение: возобновляю прослушивание');
+        scheduleRestart(500);
+      }
+    }
+
+    els.startBtn.addEventListener('click', startAllListening);
+    els.stopBtn.addEventListener('click', () => stopAllListening(false));
+    els.clearFeedBtn.addEventListener('click', clearFeedOnly);
+    els.clearHistoryBtn.addEventListener('click', clearHistoryOnly);
+    els.testButtonsBtn.addEventListener('click', runButtonDiagnostics);
+    els.saveConfigBtn.addEventListener('click', () => saveConfig(false));
+    els.cycleSelect.addEventListener('change', () => {
+      applyCycleConfig();
+      saveConfig(true);
+      setLog('Конфигурация цикла языка обновлена');
+    });
+    els.workerUrl.addEventListener('change', () => saveConfig(true));
+    els.workerUrl.addEventListener('blur', () => saveConfig(true));
+
+    document.addEventListener('visibilitychange', handleHiddenState);
+    window.addEventListener('pagehide', () => {
+      if (state.isListening) {
+        clearTimeout(state.pendingRestart);
+        stopRecognitionInstance();
+      }
+    });
+    window.addEventListener('pageshow', () => {
+      if (state.isListening && !document.hidden) scheduleRestart(500);
+    });
+    window.addEventListener('beforeunload', () => {
+      if (state.isListening) stopAllListening(false);
+    });
+
+    function init() {
+      els.versionBadge.textContent = APP_VERSION;
+      loadConfig();
+      loadHistory();
+      updateButtons();
+      if (!state.supportsRecognition) {
+        setStatus('SpeechRecognition не поддерживается в этом браузере');
+        setLive(false, 'Web Speech API недоступен');
+        setLog('Откройте в Safari на iPhone или в совместимом браузере');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
