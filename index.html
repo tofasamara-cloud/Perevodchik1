@@ -238,10 +238,10 @@
 
   
   <script>
-    const APP_VERSION = 'v3.1-ru-vi-stable-diagnostics';
+    const APP_VERSION = 'v3.2-ru-vi-show-all-worker-debug';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-    const STORAGE_KEY = 'translator_feed_v31_ru_vi';
+    const STORAGE_KEY = 'translator_feed_v32_ru_vi';
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const startBtn = document.getElementById('startBtn');
@@ -300,6 +300,7 @@
     let hardBoundaryTimer = null;
     let requestCounter = 0;
     let segmentSerial = 0;
+    let showAllMode = true;
     let lastAnalysis = { lang: 'unknown', confidence: 0, scoreRu: 0, scoreVi: 0, tokensRu: 0, tokensVi: 0 };
     let diag = { start: 0, result: 0, end: 0, error: 0 };
 
@@ -386,7 +387,11 @@
       const parts = [];
       if (draftFinalText.trim()) parts.push(draftFinalText.trim());
       if (interimBuffer.trim()) parts.push(interimBuffer.trim());
-      currentTranscript.textContent = parts.join('\n');
+      const combined = parts.join('\n').trim();
+      currentTranscript.textContent = combined;
+      if (!combined && showAllMode) {
+        currentTranscript.textContent = '';
+      }
     }
 
     function tokenize(text) {
@@ -502,12 +507,14 @@
       if (!stableInterimText || stableInterimText !== interimBuffer.trim()) return false;
       if ((Date.now() - stableInterimSince) < INTERIM_STABLE_MS) return false;
       const analysis = classifyRuVi(interimBuffer.trim());
-      if (analysis.lang === 'unknown' || analysis.confidence < 0.58) return false;
+      const words = tokenize(interimBuffer.trim());
+      if (analysis.lang === 'unknown' && words.length < 3) return false;
+      if (analysis.lang !== 'unknown' && analysis.confidence < 0.58 && words.length < 3) return false;
       draftFinalText = `${draftFinalText} ${interimBuffer.trim()}`.trim();
       interimBuffer = '';
       analyzeText(draftFinalText);
       updateCurrentTranscript();
-      setStatus('Стабильный interim превращён в готовый сегмент', true);
+      setStatus('Стабильный interim сохранён как сегмент', true);
       return true;
     }
 
@@ -516,16 +523,22 @@
       const text = draftFinalText.trim();
       if (!text) return;
       const analysis = analyzeText(text);
+      const words = tokenize(text);
       const lang = autoMode ? analysis.lang : (analysis.lang === 'unknown' ? manualLang : analysis.lang);
       if (!(lang === 'ru' || lang === 'vi')) {
-        setStatus('Жду подтверждения языка…', true);
+        if (showAllMode) {
+          currentTranscript.textContent = text;
+          setStatus(words.length >= 3 ? 'Показываю текст, жду подтверждения языка…' : 'Жду подтверждения языка…', true);
+        } else {
+          setStatus('Жду подтверждения языка…', true);
+        }
         return;
       }
-      const words = tokenize(text);
       const enoughForSoft = words.length >= SOFT_WORDS_MIN && words.length <= SOFT_WORDS_MAX;
-      const enoughForHard = words.length >= 2 && (force || words.length >= HARD_WORDS_MAX);
+      const enoughForHard = words.length >= 2 && (force || words.length >= HARD_WORDS_MAX || words.length >= 3);
       const boundaryOk = isSafeBoundary(text, lang, force || words.length >= 12);
       if ((enoughForSoft && boundaryOk) || (enoughForHard && boundaryOk)) emitSegment(text, lang, force);
+      else if (showAllMode) currentTranscript.textContent = text;
     }
 
     function pushFeed(item) {
@@ -542,24 +555,42 @@
       }
       const reqId = ++requestCounter;
       currentTranslation.textContent = isFinal ? 'Перевожу…' : 'Предварительный перевод…';
-      try {
-        const response = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: cleaned, source: sourceLang, target: LANG_META[sourceLang].target })
-        });
-        if (!response.ok) throw new Error('worker-http-' + response.status);
-        const data = await response.json().catch(() => ({}));
-        const translation = data.translation || data.translatedText || data.result || '';
-        if (reqId !== requestCounter) return;
-        currentTranslation.textContent = translation || 'Перевод не получен';
-        if (translation && isFinal) {
-          pushFeed({ text: cleaned, translation, langLabel: LANG_META[sourceLang].label, targetLabel: LANG_META[sourceLang].targetLabel, time: formatTime(), serial });
+      const payloads = [
+        { text: cleaned, source: sourceLang, target: LANG_META[sourceLang].target },
+        { text: cleaned, sourceLang: sourceLang, targetLang: LANG_META[sourceLang].target },
+        { q: cleaned, text: cleaned, source: sourceLang, target: LANG_META[sourceLang].target }
+      ];
+      let lastError = 'unknown';
+      for (const payload of payloads) {
+        try {
+          const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/plain, */*' },
+            body: JSON.stringify(payload)
+          });
+          const raw = await response.text();
+          if (!response.ok) {
+            lastError = `HTTP ${response.status}`;
+            continue;
+          }
+          let data = {};
+          try { data = raw ? JSON.parse(raw) : {}; } catch { data = { rawText: raw }; }
+          const translation = data.translation || data.translatedText || data.result || data.translated || data.textTranslated || data.targetText || data.rawText || '';
+          if (reqId !== requestCounter) return;
+          if (translation) {
+            currentTranslation.textContent = translation;
+            if (isFinal) {
+              pushFeed({ text: cleaned, translation, langLabel: LANG_META[sourceLang].label, targetLabel: LANG_META[sourceLang].targetLabel, time: formatTime(), serial });
+            }
+            return;
+          }
+          lastError = 'пустой ответ Worker';
+        } catch (e) {
+          lastError = e && e.message ? e.message : 'network-error';
         }
-      } catch (e) {
-        if (reqId !== requestCounter) return;
-        currentTranslation.textContent = 'Ошибка перевода. Проверьте Worker URL и сеть.';
       }
+      if (reqId !== requestCounter) return;
+      currentTranslation.textContent = `Ошибка перевода: ${lastError}. Проверьте Worker URL.`;
     }
 
     function emitSegment(text, sourceLang, isForced) {
@@ -573,7 +604,6 @@
       interimBuffer = '';
       stableInterimText = '';
       stableInterimSince = 0;
-      updateCurrentTranscript();
       clearTimeout(softBoundaryTimer);
       clearTimeout(hardBoundaryTimer);
       if (autoMode) {
@@ -628,6 +658,10 @@
           const text = (res[0]?.transcript || '').trim();
           if (!text || isNoiseLike(text)) continue;
           if (looksUnsupportedForeign(text)) {
+            if (showAllMode) {
+              interimBuffer = text;
+              updateCurrentTranscript();
+            }
             if (autoMode && activeRecognitionLang === 'ru') {
               preferredAutoLang = 'vi';
               setStatus('Русский модуль дал латиницу, пробую вьетнамский', true);
