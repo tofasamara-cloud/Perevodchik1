@@ -182,8 +182,8 @@
   <div class="app">
     <section class="card">
       <h1>Карманный переводчик RU ↔ VI</h1>
-      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Улучшены фильтрация шума, подтверждение языка по устойчивым словам, короткая сегментация и более ранняя выдача перевода на безопасной границе.</div>
-      <div class="version">Версия: v2.8-ru-vi-strict-only • 2026-04-17</div>
+      <div class="sub">Потоковый режим для двух языков: русский и вьетнамский. Эта сборка усилена для двустороннего быстрого переключения после готовой фразы: особенно для сцен, где вьетнамская реплика сразу сменяется русской и наоборот.</div>
+      <div class="version">Версия: v2.9-ru-vi-bidirectional-fast-switch • 2026-04-17</div>
     </section>
 
     <section class="card">
@@ -233,10 +233,10 @@
 
   <script>
     // ===== VERSION MARK =====
-    const APP_VERSION = 'v2.8-ru-vi-strict-only';
+    const APP_VERSION = 'v2.9-ru-vi-bidirectional-fast-switch';
     const BUILD_DATE = '2026-04-17';
     const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-    const STORAGE_KEY = 'translator_feed_v27_ru_vi';
+    const STORAGE_KEY = 'translator_feed_v29_ru_vi';
 
     // ===== WEB SPEECH =====
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -517,7 +517,7 @@
       if (analysis.lang !== 'unknown') {
         lastDetectedLang = analysis.lang;
         if (autoMode) preferredAutoLang = analysis.lang;
-        if (analysis.confidence >= 0.7) holdLanguageUntil = Date.now() + 900;
+        if (analysis.confidence >= 0.7) holdLanguageUntil = Date.now() + 520;
       }
       lastAnalysis = analysis;
       syncLanguageLabels(analysis.lang === 'unknown' ? null : analysis.lang);
@@ -531,9 +531,10 @@
       const delta = Math.abs(guess.scoreRu - guess.scoreVi);
       const hasViMarks = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(text || '');
       const hasCyr = /[а-яё]/i.test(text || '');
-      if (guess.confidence < 0.72) return null;
-      if (currentLang === 'ru' && guess.lang === 'vi' && (hasViMarks || delta >= 3.0)) return guess.lang;
-      if (currentLang === 'vi' && guess.lang === 'ru' && (hasCyr || delta >= 3.0)) return guess.lang;
+      if (currentLang === 'vi' && guess.lang === 'ru' && hasCyr) return guess.lang;
+      if (guess.confidence < 0.66) return null;
+      if (currentLang === 'ru' && guess.lang === 'vi' && (hasViMarks || delta >= 2.2)) return guess.lang;
+      if (currentLang === 'vi' && guess.lang === 'ru' && (hasCyr || delta >= 2.0)) return guess.lang;
       return null;
     }
 
@@ -542,7 +543,7 @@
       if (!autoMode || !isRunning) return;
       if (!nextLang || nextLang === activeRecognitionLang) return;
       if (now < switchCooldownUntil) return;
-      switchCooldownUntil = now + 1400;
+      switchCooldownUntil = now + 850;
       pendingFastSwitch = nextLang;
       preferredAutoLang = nextLang;
       holdLanguageUntil = 0;
@@ -561,7 +562,7 @@
     function shouldSwitchAutoLanguage() {
       const now = Date.now();
       if (now < holdLanguageUntil) return false;
-      if (now - lastSpeechAt < 1200) return false;
+      if (now - lastSpeechAt < 620) return false;
       return true;
     }
 
@@ -625,6 +626,19 @@
       interimBuffer = '';
       updateCurrentTranscript();
       scheduleBoundaryChecks();
+
+      if (autoMode && (sourceLang === 'ru' || sourceLang === 'vi')) {
+        const oppositeLang = sourceLang === 'ru' ? 'vi' : 'ru';
+        preferredAutoLang = oppositeLang;
+        holdLanguageUntil = 0;
+        pendingFastSwitch = oppositeLang;
+        setTimeout(() => {
+          if (!isRunning || !autoMode) return;
+          if (activeRecognitionLang === sourceLang) {
+            triggerFastAutoSwitch(oppositeLang, `Фраза завершена, быстро пробую ${LANG_META[oppositeLang].label}`);
+          }
+        }, 40);
+      }
     }
 
     function createRecognition(langCode) {
@@ -837,8 +851,11 @@
         if (!isRunning || !autoMode) return;
         if (shouldSwitchAutoLanguage()) {
           flipPreferredLanguage();
+          if (recognition) {
+            try { recognition.stop(); } catch {}
+          }
         }
-      }, 1200);
+      }, 700);
     }
 
     function stopApp() {
