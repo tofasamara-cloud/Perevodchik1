@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Переводчик RU↔VI">
+  <title>Переводчик фильма RU ↔ VI</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg: #08101d;
+      --panel: rgba(15, 23, 42, 0.92);
+      --panel-2: rgba(17, 24, 39, 0.94);
+      --border: rgba(255,255,255,0.10);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --soft: #cbd5e1;
+      --blue: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --orange: #f59e0b;
+      --ru: rgba(37, 99, 235, 0.16);
+      --vi: rgba(16, 185, 129, 0.16);
+      --shadow: 0 18px 48px rgba(0,0,0,0.35);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: linear-gradient(180deg, #07101b 0%, #101827 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px calc(env(safe-area-inset-bottom, 0px) + 86px);
+    }
+
+    .app {
+      max-width: 920px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar {
+      position: sticky;
+      top: calc(env(safe-area-inset-top, 0px) + 6px);
+      z-index: 30;
+      padding: 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 34px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border-radius: 999px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex: 0 0 auto;
+    }
+    .dot.ready { background: var(--green); }
+    .dot.listen { background: #ef4444; box-shadow: 0 0 0 9px rgba(239, 68, 68, 0.16); }
+    .dot.busy { background: var(--orange); }
+    .dot.error { background: var(--red); }
+
+    .page {
+      display: none;
+      gap: 12px;
+    }
+    .page.active { display: grid; }
+
+    .hero {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .main-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button, input, textarea { font: inherit; }
+
+    .btn {
+      min-height: 58px;
+      border: 0;
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-size: 21px;
+      font-weight: 850;
+      cursor: pointer;
+      color: #fff;
+      background: #334155;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { background: var(--blue); }
+    .btn.danger { background: var(--red); }
+    .btn.ghost {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn.small {
+      min-height: 44px;
+      font-size: 15px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 300px 1fr;
+      align-items: start;
+    }
+
+    .card {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .label {
+      color: var(--soft);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .choice-group {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .choice-btn {
+      width: 100%;
+      text-align: left;
+      min-height: 60px;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      font-size: 24px;
+      font-weight: 850;
+      padding: 14px 16px;
+      cursor: pointer;
+    }
+    .choice-btn.active {
+      background: rgba(37,99,235,0.26);
+      border-color: rgba(147,197,253,0.7);
+    }
+
+    .feed {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .message {
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      overflow: hidden;
+    }
+    .message.ru { background: linear-gradient(180deg, rgba(17,24,39,0.96), rgba(17,24,39,0.96)), var(--ru); }
+    .message.vi { background: linear-gradient(180deg, rgba(17,24,39,0.96), rgba(17,24,39,0.96)), var(--vi); }
+    .message.newest {
+      outline: 2px solid rgba(255,255,255,0.16);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset;
+    }
+
+    .message-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px 8px;
+      font-size: 17px;
+      color: var(--soft);
+      font-weight: 800;
+    }
+
+    .original {
+      padding: 0 14px;
+      font-size: clamp(24px, 4vw, 30px);
+      line-height: 1.24;
+      color: #dbeafe;
+      word-break: break-word;
+    }
+
+    .translated {
+      padding: 10px 14px 0;
+      font-size: clamp(32px, 5.3vw, 42px);
+      line-height: 1.18;
+      font-weight: 900;
+      word-break: break-word;
+    }
+
+    .message-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 14px 14px;
+    }
+
+    .empty {
+      padding: 24px 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 20px;
+      border: 1px dashed var(--border);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .input, .textarea {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      padding: 14px 16px;
+      font-size: 18px;
+    }
+    .textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .checkline {
+      display: grid;
+      gap: 8px;
+    }
+    .check {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      font-size: 18px;
+    }
+    .check input {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--blue);
+    }
+
+    .diag {
+      display: grid;
+      gap: 8px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      padding: 12px;
+      font-size: 16px;
+    }
+
+    .diag-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--soft);
+    }
+    .diag-row strong { color: var(--text); }
+
+    .bottom-nav {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+      z-index: 40;
+      max-width: 920px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: rgba(2, 6, 23, 0.88);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+
+    .tab {
+      min-height: 56px;
+      border-radius: 16px;
+      border: 0;
+      background: rgba(255,255,255,0.06);
+      color: var(--soft);
+      font-size: 18px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: rgba(37,99,235,0.30);
+      color: var(--text);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 760px) {
+      .grid, .main-actions, .split { grid-template-columns: 1fr; }
+      .topbar { top: calc(env(safe-area-inset-top, 0px) + 2px); }
+      .original { font-size: clamp(24px, 6vw, 30px); }
+      .translated { font-size: clamp(34px, 8vw, 44px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel topbar">
+      <div class="row">
+        <div>
+          <h1>Переводчик фильма RU ↔ VI</h1>
+          <div class="sub">Крупный экран для iPhone. Новые реплики сверху.</div>
+        </div>
+        <div class="status"><span class="dot ready" id="statusDot"></span><span id="statusText">Готов</span></div>
+      </div>
+    </section>
+
+    <section class="page active" id="pageMain">
+      <section class="panel hero">
+        <div class="main-actions">
+          <button class="btn primary" id="startBtn">🎤 Слушать</button>
+          <button class="btn danger" id="stopBtn">⏹ Стоп</button>
+        </div>
+        <div class="split">
+          <button class="btn ghost" id="clearBtn">Очистить ленту</button>
+          <button class="btn ghost" id="updateBtn">Обновить приложение</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <aside class="panel card">
+          <div class="choice-group">
+            <div class="label">Язык оригинала</div>
+            <button class="choice-btn active" data-group="sourceLang" data-value="vi">Вьетнамский</button>
+            <button class="choice-btn" data-group="sourceLang" data-value="ru">Русский</button>
+            <button class="choice-btn" data-group="sourceLang" data-value="auto">Авто</button>
+          </div>
+          <div class="choice-group">
+            <div class="label">Язык перевода</div>
+            <button class="choice-btn active" data-group="targetLang" data-value="ru">Русский</button>
+            <button class="choice-btn" data-group="targetLang" data-value="vi">Вьетнамский</button>
+          </div>
+          <div class="choice-group">
+            <div class="label">Важное</div>
+            <div class="hint">Для фильма обычно удобно: оригинал — <strong>Вьетнамский</strong>, перевод — <strong>Русский</strong>. Последняя реплика всегда сверху.</div>
+          </div>
+        </aside>
+
+        <section class="panel card">
+          <div class="label">Лента диалога</div>
+          <div class="feed" id="feed"></div>
+        </section>
+      </section>
+    </section>
+
+    <section class="page" id="pageTech">
+      <section class="grid">
+        <section class="panel card">
+          <div class="label">Технические настройки</div>
+          <div class="field">
+            <label class="label" for="workerUrl">URL переводчика</label>
+            <input class="input" id="workerUrl" type="url" value="https://square-cloud-e319.tofasamara.workers.dev">
+          </div>
+          <div class="field">
+            <label class="label" for="recognitionLang">Язык распознавания</label>
+            <input class="input" id="recognitionLang" type="text" value="vi-VN" placeholder="vi-VN или ru-RU">
+            <div class="hint">Если выбран режим Авто, можно оставить <strong>vi-VN</strong> для фильма. Для русской речи удобно поставить <strong>ru-RU</strong>.</div>
+          </div>
+          <div class="field">
+            <label class="label" for="manualText">Ручной тест перевода</label>
+            <textarea class="textarea" id="manualText" placeholder="Введите фразу для теста"></textarea>
+          </div>
+          <div class="split">
+            <button class="btn primary" id="manualTranslateBtn">Перевести текст</button>
+            <button class="btn ghost" id="saveSettingsBtn">Сохранить настройки</button>
+          </div>
+        </section>
+
+        <section class="panel card">
+          <div class="label">Диагностика</div>
+          <div class="diag">
+            <div class="diag-row"><span>SpeechRecognition</span><strong id="diagSpeech">—</strong></div>
+            <div class="diag-row"><span>Service Worker</span><strong id="diagSW">—</strong></div>
+            <div class="diag-row"><span>Режим</span><strong id="diagMode">—</strong></div>
+            <div class="diag-row"><span>Сообщений в ленте</span><strong id="diagCount">0</strong></div>
+          </div>
+          <div class="checkline">
+            <label class="check"><input type="checkbox" id="autoSpeakTarget"> Озвучивать перевод после распознавания</label>
+            <label class="check"><input type="checkbox" id="saveHistory" checked> Сохранять ленту между запусками</label>
+          </div>
+          <div class="split">
+            <button class="btn ghost" id="testWorkerBtn">Проверить Worker</button>
+            <button class="btn ghost" id="resetSettingsBtn">Сбросить настройки</button>
+          </div>
+          <div class="field">
+            <div class="label">Подсказка для Git и Pages</div>
+            <div class="hint">Меняешь файлы в GitHub → делаешь Commit changes → Cloudflare Pages сам обновляет сайт по той же ссылке.</div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="tab active" data-page="pageMain">Перевод</button>
+    <button class="tab" data-page="pageTech">Техника</button>
+  </nav>
+
+  <script>
+    const STORAGE_KEY = 'film_translator_pwa_v2';
+    const MAX_MESSAGES = 60;
+    const state = {
+      sourceLang: 'vi',
+      targetLang: 'ru',
+      recognitionLang: 'vi-VN',
+      workerUrl: 'https://square-cloud-e319.tofasamara.workers.dev',
+      autoSpeakTarget: false,
+      saveHistory: true,
+      messages: [],
+      listening: false,
+      busy: false,
+      recognition: null,
+      recognizerAvailable: false,
+      currentPage: 'pageMain'
+    };
+
+    const el = {
+      feed: document.getElementById('feed'),
+      statusDot: document.getElementById('statusDot'),
+      statusText: document.getElementById('statusText'),
+      workerUrl: document.getElementById('workerUrl'),
+      recognitionLang: document.getElementById('recognitionLang'),
+      manualText: document.getElementById('manualText'),
+      autoSpeakTarget: document.getElementById('autoSpeakTarget'),
+      saveHistory: document.getElementById('saveHistory'),
+      diagSpeech: document.getElementById('diagSpeech'),
+      diagSW: document.getElementById('diagSW'),
+      diagMode: document.getElementById('diagMode'),
+      diagCount: document.getElementById('diagCount')
+    };
+
+    function saveState() {
+      const payload = {
+        sourceLang: state.sourceLang,
+        targetLang: state.targetLang,
+        recognitionLang: state.recognitionLang,
+        workerUrl: state.workerUrl,
+        autoSpeakTarget: state.autoSpeakTarget,
+        saveHistory: state.saveHistory,
+        messages: state.saveHistory ? state.messages : []
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        Object.assign(state, {
+          sourceLang: saved.sourceLang || state.sourceLang,
+          targetLang: saved.targetLang || state.targetLang,
+          recognitionLang: saved.recognitionLang || state.recognitionLang,
+          workerUrl: saved.workerUrl || state.workerUrl,
+          autoSpeakTarget: Boolean(saved.autoSpeakTarget),
+          saveHistory: saved.saveHistory !== false,
+          messages: Array.isArray(saved.messages) ? saved.messages.slice(0, MAX_MESSAGES) : []
+        });
+      } catch (err) {
+        console.warn('Не удалось загрузить настройки', err);
+      }
+    }
+
+    function applyStateToControls() {
+      el.workerUrl.value = state.workerUrl;
+      el.recognitionLang.value = state.recognitionLang;
+      el.autoSpeakTarget.checked = state.autoSpeakTarget;
+      el.saveHistory.checked = state.saveHistory;
+      document.querySelectorAll('.choice-btn').forEach(btn => {
+        const group = btn.dataset.group;
+        btn.classList.toggle('active', state[group] === btn.dataset.value);
+      });
+      updateDiag();
+    }
+
+    function updateStatus(type, text) {
+      el.statusDot.className = 'dot ' + type;
+      el.statusText.textContent = text;
+    }
+
+    function updateDiag() {
+      el.diagSpeech.textContent = state.recognizerAvailable ? 'доступно' : 'нет';
+      el.diagSW.textContent = ('serviceWorker' in navigator) ? 'доступно' : 'нет';
+      el.diagMode.textContent = `${labelLang(state.sourceLang)} → ${labelLang(state.targetLang)}`;
+      el.diagCount.textContent = String(state.messages.length);
+    }
+
+    function labelLang(code) {
+      if (code === 'ru') return 'Русский';
+      if (code === 'vi') return 'Вьетнамский';
+      if (code === 'auto') return 'Авто';
+      return code;
+    }
+
+    function recognitionLocaleBySource() {
+      if (state.sourceLang === 'ru') return 'ru-RU';
+      if (state.sourceLang === 'vi') return 'vi-VN';
+      return state.recognitionLang || 'vi-VN';
+    }
+
+    function renderFeed() {
+      if (!state.messages.length) {
+        el.feed.innerHTML = '<div class="empty">Нажмите «Слушать» или выполните ручной тест перевода. Самая свежая реплика будет сверху.</div>';
+        updateDiag();
+        return;
+      }
+      el.feed.innerHTML = state.messages.map((item, index) => {
+        const newest = index === 0 ? ' newest' : '';
+        const cls = item.detectedSource === 'ru' ? 'ru' : 'vi';
+        return `
+          <article class="message ${cls}${newest}">
+            <div class="message-head">
+              <span>${item.detectedSource === 'ru' ? '🇷🇺 Русский' : '🇻🇳 Вьетнамский'}</span>
+              <span>${item.time}</span>
+            </div>
+            <div class="original">${escapeHtml(item.original)}</div>
+            <div class="translated">${escapeHtml(item.translated)}</div>
+            <div class="message-actions">
+              <button class="btn ghost small" data-copy="${item.id}">Копировать</button>
+              <button class="btn ghost small" data-speak="${item.id}">Озвучить</button>
+              <button class="btn ghost small" data-delete="${item.id}">Удалить</button>
+            </div>
+          </article>`;
+      }).join('');
+      updateDiag();
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function pushMessage(original, translated, detectedSource) {
+      const item = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        original,
+        translated,
+        detectedSource,
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      };
+      state.messages.unshift(item);
+      state.messages = state.messages.slice(0, MAX_MESSAGES);
+      saveState();
+      renderFeed();
+      if (state.autoSpeakTarget) {
+        speakText(item.translated, state.targetLang);
+      }
+    }
+
+    function deleteMessage(id) {
+      state.messages = state.messages.filter(item => item.id !== id);
+      saveState();
+      renderFeed();
+    }
+
+    async function copyMessage(id) {
+      const item = state.messages.find(m => m.id === id);
+      if (!item) return;
+      const payload = `${item.original}\n${item.translated}`;
+      await navigator.clipboard.writeText(payload);
+      updateStatus('ready', 'Скопировано');
+      setTimeout(() => updateStatus(state.listening ? 'listen' : 'ready', state.listening ? 'Слушаю…' : 'Готов'), 1200);
+    }
+
+    function speakText(text, langCode) {
+      if (!('speechSynthesis' in window) || !text) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = langCode === 'vi' ? 'vi-VN' : 'ru-RU';
+      window.speechSynthesis.speak(utter);
+    }
+
+    async function fetchTranslate(text, source, target) {
+      const url = (el.workerUrl.value || state.workerUrl || '').trim();
+      if (!url) throw new Error('Не указан Worker URL');
+      const payloads = [
+        { text, source, target },
+        { text, from: source, to: target },
+        { q: text, source, target },
+        { q: text, from: source, to: target }
+      ];
+
+      let lastErr = null;
+      for (const payload of payloads) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+          }
+          const translated = data.translation || data.translatedText || data.result || data.text || data.output;
+          const detected = data.detectedSource || data.detected || data.source || source;
+          if (!translated) throw new Error('Пустой ответ переводчика');
+          return { translated: String(translated), detectedSource: normalizeLang(detected, source) };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error('Не удалось выполнить перевод');
+    }
+
+    function normalizeLang(value, fallback) {
+      const v = String(value || '').toLowerCase();
+      if (v.startsWith('ru')) return 'ru';
+      if (v.startsWith('vi')) return 'vi';
+      if (v === 'auto') return fallback === 'auto' ? 'vi' : fallback;
+      return fallback === 'auto' ? 'vi' : fallback;
+    }
+
+    async function processText(text) {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return;
+      state.busy = true;
+      updateStatus('busy', 'Перевожу…');
+      try {
+        const source = state.sourceLang;
+        const target = state.targetLang;
+        const result = await fetchTranslate(trimmed, source, target);
+        pushMessage(trimmed, result.translated, result.detectedSource);
+        updateStatus(state.listening ? 'listen' : 'ready', state.listening ? 'Слушаю…' : 'Готов');
+      } catch (err) {
+        console.error(err);
+        updateStatus('error', 'Ошибка перевода');
+        pushMessage(trimmed, `Ошибка: ${err.message}`, source === 'auto' ? 'vi' : source);
+      } finally {
+        state.busy = false;
+      }
+    }
+
+    function initRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        state.recognizerAvailable = false;
+        updateDiag();
+        return;
+      }
+      state.recognizerAvailable = true;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.lang = recognitionLocaleBySource();
+
+      recognition.onstart = () => {
+        state.listening = true;
+        updateStatus('listen', 'Слушаю…');
+      };
+
+      recognition.onend = () => {
+        const shouldRestart = state.listening;
+        if (!shouldRestart) {
+          updateStatus('ready', 'Готов');
+          return;
+        }
+        setTimeout(() => {
+          try {
+            recognition.lang = recognitionLocaleBySource();
+            recognition.start();
+          } catch (err) {
+            console.warn('Повторный запуск не удался', err);
+          }
+        }, 300);
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('recognition error', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          state.listening = false;
+          updateStatus('error', 'Нет доступа к микрофону');
+        } else if (event.error === 'no-speech') {
+          updateStatus('ready', 'Нет речи');
+        } else {
+          updateStatus('error', `Ошибка: ${event.error}`);
+        }
+      };
+
+      recognition.onresult = async (event) => {
+        const latest = event.results[event.results.length - 1];
+        if (!latest || !latest[0]) return;
+        const text = latest[0].transcript;
+        await processText(text);
+      };
+
+      state.recognition = recognition;
+      updateDiag();
+    }
+
+    function startListening() {
+      if (!state.recognition) {
+        updateStatus('error', 'SpeechRecognition недоступен');
+        return;
+      }
+      state.listening = true;
+      state.recognition.lang = recognitionLocaleBySource();
+      try {
+        state.recognition.start();
+      } catch (err) {
+        console.warn(err);
+      }
+      updateDiag();
+    }
+
+    function stopListening() {
+      state.listening = false;
+      if (state.recognition) {
+        try { state.recognition.stop(); } catch (err) { console.warn(err); }
+      }
+      updateStatus('ready', 'Готов');
+      updateDiag();
+    }
+
+    function switchPage(pageId) {
+      state.currentPage = pageId;
+      document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === pageId));
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === pageId));
+    }
+
+    async function updateApp() {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update();
+      }
+      location.reload();
+    }
+
+    async function testWorker() {
+      const text = el.manualText.value.trim() || 'Xin chào';
+      await processText(text);
+      switchPage('pageMain');
+    }
+
+    function bindEvents() {
+      document.getElementById('startBtn').addEventListener('click', startListening);
+      document.getElementById('stopBtn').addEventListener('click', stopListening);
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        state.messages = [];
+        saveState();
+        renderFeed();
+      });
+      document.getElementById('updateBtn').addEventListener('click', updateApp);
+      document.getElementById('manualTranslateBtn').addEventListener('click', testWorker);
+      document.getElementById('testWorkerBtn').addEventListener('click', testWorker);
+      document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+        state.workerUrl = el.workerUrl.value.trim();
+        state.recognitionLang = el.recognitionLang.value.trim() || 'vi-VN';
+        state.autoSpeakTarget = el.autoSpeakTarget.checked;
+        state.saveHistory = el.saveHistory.checked;
+        saveState();
+        applyStateToControls();
+        updateStatus('ready', 'Настройки сохранены');
+      });
+      document.getElementById('resetSettingsBtn').addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      });
+
+      document.querySelectorAll('.choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const group = btn.dataset.group;
+          state[group] = btn.dataset.value;
+          if (group === 'sourceLang' && state.sourceLang !== 'auto') {
+            state.recognitionLang = state.sourceLang === 'ru' ? 'ru-RU' : 'vi-VN';
+            el.recognitionLang.value = state.recognitionLang;
+          }
+          applyStateToControls();
+          saveState();
+        });
+      });
+
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => switchPage(tab.dataset.page));
+      });
+
+      el.autoSpeakTarget.addEventListener('change', () => {
+        state.autoSpeakTarget = el.autoSpeakTarget.checked;
+        saveState();
+      });
+      el.saveHistory.addEventListener('change', () => {
+        state.saveHistory = el.saveHistory.checked;
+        saveState();
+      });
+      el.workerUrl.addEventListener('change', () => {
+        state.workerUrl = el.workerUrl.value.trim();
+        saveState();
+      });
+      el.recognitionLang.addEventListener('change', () => {
+        state.recognitionLang = el.recognitionLang.value.trim() || 'vi-VN';
+        saveState();
+      });
+
+      el.feed.addEventListener('click', async (event) => {
+        const copyId = event.target.getAttribute('data-copy');
+        const speakId = event.target.getAttribute('data-speak');
+        const delId = event.target.getAttribute('data-delete');
+        if (copyId) await copyMessage(copyId);
+        if (speakId) {
+          const item = state.messages.find(m => m.id === speakId);
+          if (item) speakText(item.translated, state.targetLang);
+        }
+        if (delId) deleteMessage(delId);
+      });
+    }
+
+    async function registerSW() {
+      if (!('serviceWorker' in navigator)) return;
+      try {
+        await navigator.serviceWorker.register('./service-worker.js');
+      } catch (err) {
+        console.warn('SW registration failed', err);
+      }
+      updateDiag();
+    }
+
+    function init() {
+      loadState();
+      applyStateToControls();
+      renderFeed();
+      initRecognition();
+      bindEvents();
+      registerSW();
+    }
+
+    init();
+  </script>
+</body>
+</html>
