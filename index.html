@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Translator RU ⇄ VI v3.4</title>
+
+<meta name="theme-color" content="#111">
+<meta name="app-version" content="3.4">
+
+<style>
+body {
+  margin:0;
+  font-family:-apple-system;
+  background:#111;
+  color:#fff;
+}
+header {
+  padding:10px;
+  text-align:center;
+  background:#000;
+  font-size:14px;
+}
+button {
+  margin:5px;
+  padding:10px;
+  font-size:16px;
+}
+#feed {
+  padding:10px;
+}
+.item {
+  border-bottom:1px solid #333;
+  padding:8px 0;
+}
+.lang {
+  opacity:0.6;
+  font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  🎧 Translator RU ⇄ VI | v3.4
+</header>
+
+<div style="text-align:center">
+  <button onclick="start()">START</button>
+  <button onclick="stop()">STOP</button>
+  <button onclick="clearFeed()">CLEAR</button>
+  <button onclick="location.reload()">UPDATE</button>
+</div>
+
+<div id="feed"></div>
+
+<script>
+const worker = "https://square-cloud-e319.tofasamara.workers.dev";
+
+let recognition;
+let active = false;
+
+function detectLang(text){
+  const ru = /[а-яё]/i.test(text);
+  const vi = /[ăâđêôơưáàảãạ]/i.test(text);
+  if(vi) return "vi";
+  if(ru) return "ru";
+  return null;
+}
+
+function add(text, lang, tr){
+  const el = document.createElement("div");
+  el.className = "item";
+  el.innerHTML = `
+    <div class="lang">${lang}</div>
+    <div>${text}</div>
+    <div style="opacity:.7">${tr || ""}</div>
+  `;
+  document.getElementById("feed").prepend(el);
+}
+
+async function translate(text, from){
+  try{
+    const res = await fetch(worker, {
+      method:"POST",
+      body:JSON.stringify({text, from})
+    });
+    const data = await res.json();
+    return data.text;
+  }catch(e){
+    return "error";
+  }
+}
+
+function start(){
+  if(active) return;
+
+  recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onresult = async (e)=>{
+    const text = e.results[e.results.length-1][0].transcript.trim();
+    const lang = detectLang(text);
+    if(!lang) return;
+
+    add(text, lang, "...");
+
+    const tr = await translate(text, lang);
+    add(text, lang, tr);
+
+    // агрессивный рескан
+    recognition.stop();
+    setTimeout(()=>recognition.start(), 100);
+  };
+
+  recognition.onend = ()=>{
+    if(active) recognition.start();
+  };
+
+  recognition.start();
+  active = true;
+}
+
+function stop(){
+  active = false;
+  recognition && recognition.stop();
+}
+
+function clearFeed(){
+  document.getElementById("feed").innerHTML = "";
+}
+</script>
+
+</body>
+</html>
