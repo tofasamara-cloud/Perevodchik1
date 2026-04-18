@@ -6,8 +6,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0b1220">
-  <meta name="app-version" content="3.4.1">
-  <title>RU ↔ VI Translator v3.4.1</title>
+  <meta name="app-version" content="3.4.2">
+  <title>RU ↔ VI Translator v3.4.2</title>
   <style>
     :root {
       --bg: #0b1220;
@@ -101,7 +101,7 @@
       <section class="card header">
         <div class="title-row">
           <div class="title">RU ↔ VI Translator</div>
-          <div class="badge">WORKING BUILD v3.4.1</div>
+          <div class="badge">WORKING BUILD v3.4.2</div>
         </div>
         <div class="subtitle">
           Быстрая версия для Cloudflare Pages. Только <strong>русский</strong> и <strong>вьетнамский</strong>. Есть live транскрибация,
@@ -177,10 +177,10 @@
     (() => {
       'use strict';
 
-      const VERSION = 'v3.4.1';
+      const VERSION = 'v3.4.2';
       const WORKER_URL = 'https://square-cloud-e319.tofasamara.workers.dev';
-      const STORAGE_KEY = 'translator_v3_4_1_feed';
-      const SETTINGS_KEY = 'translator_v3_4_1_settings';
+      const STORAGE_KEY = 'translator_v3_4_2_feed';
+      const SETTINGS_KEY = 'translator_v3_4_2_settings';
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
       const el = (id) => document.getElementById(id);
@@ -210,9 +210,28 @@
         previewToken: 0,
         lastPreviewText: '',
         lastPreviewLang: '',
-        finalToken: 0,
-        lastFinalText: '',
+        forceSwitchLockUntil: 0,
       };
+
+      function shouldForceSwitch(text, currentLang) {
+        const now = Date.now();
+        if (now < state.forceSwitchLockUntil) return null;
+        const t = normalizeText(text);
+        if (!t || t.length < 3) return null;
+        const candidate = detectLang(t, currentLang);
+        if (candidate === currentLang) return null;
+
+        const cyr = (t.match(/[А-Яа-яЁё]/g) || []).length;
+        const viMarks = (t.match(/[ăâđêôơưĂÂĐÊÔƠƯàáạảãằắặẳẵầấậẩẫèéẹẻẽềếệểễìíịỉĩòóọỏõồốộổỗờớợởỡùúụủũừứựửữỳýỵỷỹ]/g) || []).length;
+        const asciiWords = t.toLowerCase().match(/[a-z]+/g) || [];
+        const viHints = new Set(['xin','chao','toi','ban','anh','em','khong','co','duoc','roi','rat','mot','phim','dang','xem','noi','nghe','lam','gi','vay','gio','hom','nay','mai','cam','on']);
+        let viAscii = 0;
+        for (const w of asciiWords) if (viHints.has(w)) viAscii++;
+
+        if (candidate === 'ru' && cyr >= 3) return 'ru';
+        if (candidate === 'vi' && (viMarks >= 1 || viAscii >= 2)) return 'vi';
+        return null;
+      }
 
       function loadSettings() {
         try {
@@ -309,12 +328,24 @@
       function detectLang(text, fallback = 'ru') {
         const t = normalizeText(text);
         if (!t) return fallback;
+
         const cyr = (t.match(/[А-Яа-яЁё]/g) || []).length;
         const viMarks = (t.match(/[ăâđêôơưĂÂĐÊÔƠƯàáạảãằắặẳẵầấậẩẫèéẹẻẽềếệểễìíịỉĩòóọỏõồốộổỗờớợởỡùúụủũừứựửữỳýỵỷỹ]/g) || []).length;
-        const latin = (t.match(/[A-Za-z]/g) || []).length;
-        if (cyr > 0 && cyr >= viMarks) return 'ru';
-        if (viMarks > 0) return 'vi';
-        if (latin > 0) return state.mode === 'auto' ? fallback : state.mode;
+        const asciiWords = t.toLowerCase().match(/[a-z]+/g) || [];
+        const viHints = new Set([
+          'xin','chao','toi','ban','anh','em','khong','co','duoc','roi','rat','mot','hai','ba','bon','nam','sau','bay','tam','chin','muoi',
+          'day','dau','sao','di','ve','nha','phim','dang','xem','noi','nghe','lam','gi','vay','nhe','nha','thu','gio','hom','nay','mai',
+          'nguoi','yeu','thich','cam','on','khong','biet','nhieu','it','roi','thoi','vao','ra','cho','doi','dung'
+        ]);
+        let viAscii = 0;
+        for (const w of asciiWords) if (viHints.has(w)) viAscii++;
+
+        if (cyr >= 2 && cyr >= viMarks) return 'ru';
+        if (viMarks >= 1) return 'vi';
+        if (viAscii >= 1) return 'vi';
+
+        // У нас только 2 языка. Если движок дал латиницу без диакритики,
+        // не считаем это английским и не уходим в третий язык.
         return fallback;
       }
 
@@ -444,6 +475,16 @@
             const liveLang = state.mode === 'auto' ? detectLang(interim, state.activeLang) : state.mode;
             setLiveText(interim, liveLang, targetLangFor(liveLang), ui.liveTranslation.textContent === '—' ? 'Перевод…' : ui.liveTranslation.textContent);
             schedulePreviewTranslation(interim, liveLang);
+
+            if (state.mode === 'auto') {
+              const forced = shouldForceSwitch(interim, state.activeLang);
+              if (forced && forced !== state.activeLang) {
+                state.forceSwitchLockUntil = Date.now() + 1400;
+                setChip(ui.statusLang, `Режим: авто RU/VI · быстрый переход ${forced.toUpperCase()}`, 'wait');
+                restartListening(forced, 60);
+                return;
+              }
+            }
           }
 
           if (!finals.length) return;
@@ -469,7 +510,8 @@
           appendFeed({ transcript: merged, translation: translation || '[ошибка перевода]', sourceLang, targetLang });
 
           if (state.mode === 'auto') {
-            restartListening(nextScanLang(sourceLang), state.scan === 'aggressive' ? 110 : 240);
+            state.forceSwitchLockUntil = Date.now() + 900;
+            restartListening(nextScanLang(sourceLang), state.scan === 'aggressive' ? 70 : 180);
           }
         };
 
@@ -544,6 +586,7 @@
         state.lastFinalText = '';
         setLiveText('—', 'ru', 'vi', '—');
         setChip(ui.statusLive, 'Live: очищено', '');
+        state.forceSwitchLockUntil = 0;
       }
 
       function exportFeed() {
