@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07111f">
+<title>RU↔VI Translator v4.2.1 stable</title>
+<style>
+:root{--bg:#07111f;--panel:#101a2c;--panel2:#152238;--text:#f4f7fb;--muted:#95a3b8;--ru:#4da3ff;--vi:#45e08f;--danger:#ff5c77;--warn:#ffd166;--ok:#45e08f;--border:rgba(255,255,255,.08);--shadow:0 12px 30px rgba(0,0,0,.26)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(circle at top,#15284b 0,#07111f 46%,#050a13 100%);color:var(--text);padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);overflow-x:hidden}
+.app{max-width:520px;margin:0 auto;padding:10px 0 16px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 2px 12px}
+.title{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.ver{font-size:12px;color:var(--muted);margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--muted);font-size:12px;border:1px solid var(--border)}
+.dot{width:8px;height:8px;border-radius:99px;background:var(--muted)}
+.dot.on{background:var(--ok);box-shadow:0 0 16px var(--ok)}
+.dot.err{background:var(--danger);box-shadow:0 0 16px var(--danger)}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:4px 0 12px}
+.tab{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--muted);border-radius:14px;padding:12px 8px;font-size:14px;font-weight:700}
+.tab.active{background:var(--panel2);color:#fff;border-color:rgba(255,255,255,.18)}
+.screen{display:none}.screen.active{display:block}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.045));border:1px solid var(--border);border-radius:22px;padding:16px;margin:0 0 12px;box-shadow:var(--shadow);backdrop-filter:blur(10px)}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px}
+.liveText{min-height:88px;border-radius:18px;background:rgba(0,0,0,.18);padding:14px;font-size:22px;line-height:1.32;font-weight:750;white-space:pre-wrap;word-break:break-word}
+.translation{margin-top:10px;min-height:62px;border-radius:18px;background:rgba(0,0,0,.16);padding:13px;font-size:19px;line-height:1.35;color:#fff;white-space:pre-wrap}
+.langLine{display:flex;justify-content:space-between;gap:8px;margin-top:12px;color:var(--muted);font-size:13px}
+.langBadge{font-weight:800}.ru{color:var(--ru)}.vi{color:var(--vi)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{appearance:none;border:0;border-radius:18px;padding:15px 12px;font-size:16px;font-weight:800;color:#fff;background:var(--panel2);box-shadow:0 8px 18px rgba(0,0,0,.2)}
+button.primary{background:linear-gradient(180deg,#278dff,#1566ce)}
+button.danger{background:linear-gradient(180deg,#ff647e,#d93254)}
+button.ghost{background:rgba(255,255,255,.08);color:var(--muted);border:1px solid var(--border)}
+button:disabled{opacity:.45}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{font-size:12px;color:var(--muted);line-height:1.4}
+input,select{width:100%;border:1px solid var(--border);background:rgba(0,0,0,.22);color:#fff;border-radius:16px;padding:14px;font-size:16px;outline:none}
+.row{display:flex;gap:10px;align-items:center}.grow{flex:1}
+.logItem{border-radius:18px;padding:13px;margin-bottom:10px;background:rgba(255,255,255,.065);border:1px solid var(--border)}
+.logTop{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.logText{font-size:18px;line-height:1.35;font-weight:700}
+.logTrans{font-size:16px;line-height:1.35;margin-top:8px;color:#fff;opacity:.92}
+.empty{color:var(--muted);text-align:center;padding:26px 8px}
+.warn{color:var(--warn)}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="top"><div><div class="title">RU↔VI Translator</div><div class="ver">v4.2.1 stable · один контроллер</div></div><div class="pill"><span id="statusDot" class="dot"></span><span id="statusText">стоп</span></div></div>
+<div class="tabs"><button class="tab active" data-tab="live">🎤 Live</button><button class="tab" data-tab="dialog">💬 Лента</button><button class="tab" data-tab="settings">⚙️ Настройки</button></div>
+<section id="live" class="screen active">
+<div class="card"><div class="label">Текущая фраза</div><div id="liveText" class="liveText">Нажмите «Старт»</div><div id="liveTranslation" class="translation">Перевод появится здесь</div><div class="langLine"><span>Слушатель: <b id="listenerLang" class="langBadge">VI</b></span><span>Фраза: <b id="phraseLang" class="langBadge">—</b></span></div></div>
+<div class="card"><div class="controls"><button id="startBtn" class="primary">▶️ Старт</button><button id="stopBtn" class="danger">⛔ Стоп</button></div><div class="grid2" style="margin-top:10px"><button id="forceRuBtn" class="ghost">Слушать RU</button><button id="forceViBtn" class="ghost">Слушать VI</button></div><p class="small">Фраза определяется по тексту, потом слушатель переключается на второй язык. Английский и неизвестная латиница блокируются.</p></div>
+</section>
+<section id="dialog" class="screen"><div class="card"><div class="row"><div class="grow"><div class="label">История</div><div class="small">Сохраняется локально на iPhone.</div></div><button id="clearBtn" class="ghost">Очистить</button></div></div><div id="log"></div></section>
+<section id="settings" class="screen">
+<div class="card"><div class="label">API / пароль</div><input id="apiKey" type="password" placeholder="Введите API ключ или пароль Worker" autocomplete="off"><div class="controls" style="margin-top:10px"><button id="saveKeyBtn" class="primary">Сохранить</button><button id="showKeyBtn" class="ghost">Показать</button></div><p class="small">Ключ хранится только в <span class="mono">localStorage</span>. Лучше проверять пароль на Worker, а не хранить настоящий API-ключ в браузере.</p></div>
+<div class="card"><div class="label">Стабильность</div><div class="row"><div class="grow"><div class="small">Пауза завершения фразы</div><select id="pauseMs"><option value="700">Быстро · 0.7 сек</option><option value="900" selected>Стабильно · 0.9 сек</option><option value="1200">Шумно · 1.2 сек</option></select></div></div><div class="row" style="margin-top:10px"><div class="grow"><div class="small">Пауза переключения языка</div><select id="switchMs"><option value="300">Быстро · 0.3 сек</option><option value="450" selected>Стабильно · 0.45 сек</option><option value="650">iPhone/Safari · 0.65 сек</option></select></div></div></div>
+<div class="card"><div class="label">Worker URL</div><input id="workerUrl" placeholder="https://square-cloud-e319.tofasamara.workers.dev"><button id="saveWorkerBtn" class="primary" style="margin-top:10px;width:100%">Сохранить Worker</button><p class="small warn">Если перевод пишет «ошибка перевода», транскрибация всё равно не должна ломаться.</p></div>
+</section>
+</div>
+<script>
+(()=>{"use strict";
+const VERSION="4.2.1-stable",DEFAULT_WORKER="https://square-cloud-e319.tofasamara.workers.dev";
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const el={statusDot:id("statusDot"),statusText:id("statusText"),liveText:id("liveText"),liveTranslation:id("liveTranslation"),listenerLang:id("listenerLang"),phraseLang:id("phraseLang"),log:id("log"),startBtn:id("startBtn"),stopBtn:id("stopBtn"),forceRuBtn:id("forceRuBtn"),forceViBtn:id("forceViBtn"),clearBtn:id("clearBtn"),apiKey:id("apiKey"),saveKeyBtn:id("saveKeyBtn"),showKeyBtn:id("showKeyBtn"),pauseMs:id("pauseMs"),switchMs:id("switchMs"),workerUrl:id("workerUrl"),saveWorkerBtn:id("saveWorkerBtn")};
+function id(x){return document.getElementById(x)}
+const st={r:null,running:false,manualStop:true,switching:false,current:"vi-VN",buffer:"",lastSpeech:0,lastFinal:"",lastFinalAt:0,finalTimer:null,restartTimer:null,history:[],seq:0};
+function load(){el.apiKey.value=localStorage.getItem("RUVI_API_KEY")||"";el.workerUrl.value=localStorage.getItem("RUVI_WORKER_URL")||DEFAULT_WORKER;el.pauseMs.value=localStorage.getItem("RUVI_PAUSE_MS")||"900";el.switchMs.value=localStorage.getItem("RUVI_SWITCH_MS")||"450";try{st.history=JSON.parse(localStorage.getItem("RUVI_HISTORY")||"[]")}catch{st.history=[]}renderHistory();updateListenUi()}
+function saveHist(){localStorage.setItem("RUVI_HISTORY",JSON.stringify(st.history.slice(0,120)))}
+function status(k,t){el.statusDot.className="dot"+(k==="on"?" on":k==="err"?" err":"");el.statusText.textContent=t}
+function updateListenUi(){const ru=st.current==="ru-RU";el.listenerLang.textContent=ru?"RU":"VI";el.listenerLang.className="langBadge "+(ru?"ru":"vi")}
+function norm(t){return String(t||"").replace(/\s+/g," ").trim()}
+function detect(t){t=norm(t).toLowerCase();if(!t)return"unknown";if((t.match(/[а-яё]/gi)||[]).length>=1)return"ru-RU";const vi=(t.match(/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/gi)||[]).length;const viw=/\b(xin|chào|cảm|ơn|không|được|tôi|bạn|anh|em|chị|ơi|vâng|dạ|rồi|này|đó|là|có|đi|đâu|gì|mình|người|nói)\b/i.test(t);if(vi>=1||viw)return"vi-VN";if((t.match(/[a-z]/gi)||[]).length>0)return"unknown";return"unknown"}
+function opp(l){return l==="ru-RU"?"vi-VN":"ru-RU"}function sl(l){return l==="ru-RU"?"RU":l==="vi-VN"?"VI":"—"}
+function hardStop(){clearTimeout(st.restartTimer);st.restartTimer=null;const r=st.r;st.r=null;if(r){try{r.onresult=null;r.onerror=null;r.onend=null;r.onspeechend=null;r.onsoundend=null}catch(e){}try{r.abort()}catch(e){}try{r.stop()}catch(e){}}}
+function makeRec(lang){const r=new SR();r.lang=lang==="ru-RU"?"ru-RU":"vi-VN";r.interimResults=true;r.continuous=true;r.maxAlternatives=1;return r}
+function bind(r){r.onresult=e=>{if(!st.running||st.switching||st.manualStop)return;let text="";for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i]&&e.results[i][0])text+=e.results[i][0].transcript+" "}text=norm(text);if(!text)return;st.buffer=text;st.lastSpeech=Date.now();el.liveText.textContent=text;const d=detect(text);el.phraseLang.textContent=sl(d);el.phraseLang.className="langBadge "+(d==="ru-RU"?"ru":d==="vi-VN"?"vi":"")};
+r.onerror=e=>{if(st.manualStop)return;const er=e&&e.error?e.error:"unknown";if(er==="not-allowed"||er==="service-not-allowed"){status("err","нет микрофона");st.running=false;hardStop();return}if(!st.switching&&st.running)scheduleRestart(350)};
+r.onspeechend=()=>tryFinalize("speechend");r.onsoundend=()=>tryFinalize("soundend");r.onend=()=>{if(st.manualStop||!st.running||st.switching)return;scheduleRestart(260)}}
+function scheduleRestart(d){clearTimeout(st.restartTimer);st.restartTimer=setTimeout(()=>{if(!st.running||st.manualStop||st.switching)return;startRec(st.current)},d)}
+function startRec(lang){if(!SR){status("err","нет SpeechRecognition");el.liveText.textContent="SpeechRecognition не найден. Откройте в Safari/Chrome.";return}hardStop();st.current=lang==="ru-RU"?"ru-RU":"vi-VN";updateListenUi();const r=makeRec(st.current);st.r=r;bind(r);try{r.start();status("on","слушаю "+sl(st.current))}catch(e){scheduleRestart(450)}}
+async function switchTo(lang){if(!st.running||st.manualStop||st.switching)return;st.switching=true;status("on","переключение → "+sl(lang));hardStop();await sleep(Number(el.switchMs.value||450));st.current=lang==="ru-RU"?"ru-RU":"vi-VN";updateListenUi();st.switching=false;if(st.running&&!st.manualStop)startRec(st.current)}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function startTimer(){clearInterval(st.finalTimer);st.finalTimer=setInterval(()=>tryFinalize("timer"),220)}
+function tryFinalize(reason){if(!st.running||st.manualStop||st.switching)return;const text=norm(st.buffer);if(!text)return;const pause=Number(el.pauseMs.value||900);if(reason==="timer"&&Date.now()-st.lastSpeech<pause)return;finalize(text)}
+function dup(text){return text===st.lastFinal&&Date.now()-st.lastFinalAt<1800}
+function finalize(text){text=norm(text);if(!text||text.length<2)return;if(dup(text)){st.buffer="";return}const src=detect(text);if(src==="unknown"){st.buffer="";el.liveTranslation.textContent="Фраза пропущена: не RU и не VI";return}st.lastFinal=text;st.lastFinalAt=Date.now();st.buffer="";const tgt=opp(src);const item={id:++st.seq,ts:new Date().toISOString(),src,tgt,text,translation:"перевод..."};st.history.unshift(item);st.history=st.history.slice(0,120);saveHist();renderHistory();el.phraseLang.textContent=sl(src);el.phraseLang.className="langBadge "+(src==="ru-RU"?"ru":"vi");el.liveTranslation.textContent="перевод...";switchTo(tgt);translate(item)}
+async function translate(item){const key=localStorage.getItem("RUVI_API_KEY")||"",url=localStorage.getItem("RUVI_WORKER_URL")||DEFAULT_WORKER;const payload={text:item.text,source:item.src==="ru-RU"?"ru":"vi",target:item.tgt==="ru-RU"?"ru":"vi",apiKey:key,password:key,version:VERSION,context:"casual live conversation RU-VI"};let last="";for(let a=1;a<=2;a++){try{const c=new AbortController();const to=setTimeout(()=>c.abort(),9000);const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal:c.signal});clearTimeout(to);if(!res.ok)throw new Error("HTTP "+res.status);const data=await res.json().catch(()=>({}));const tr=data.translation||data.translatedText||data.text||data.result||"";updateTr(item.id,tr||"[нет перевода]");return}catch(e){last=e&&e.message?e.message:"ошибка";await sleep(450)}}updateTr(item.id,"[ошибка перевода: "+last+"]")}
+function updateTr(id,tr){const item=st.history.find(x=>x.id===id);if(!item)return;item.translation=tr;saveHist();renderHistory();if(st.history[0]&&st.history[0].id===id)el.liveTranslation.textContent=tr}
+function renderHistory(){if(!st.history.length){el.log.innerHTML='<div class="empty">Лента пока пустая</div>';return}el.log.innerHTML=st.history.map(item=>{const cls=item.src==="ru-RU"?"ru":"vi";const time=new Date(item.ts).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});return `<div class="logItem"><div class="logTop"><span class="${cls}">${sl(item.src)} → ${sl(item.tgt)}</span><span>${time}</span></div><div class="logText ${cls}">${esc(item.text)}</div><div class="logTrans">${esc(item.translation||"")}</div></div>`}).join("")}
+function esc(s){return String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]))}
+function startApp(){st.running=true;st.manualStop=false;st.switching=false;st.buffer="";st.lastSpeech=0;el.liveText.textContent="Слушаю "+sl(st.current)+"...";el.liveTranslation.textContent="Перевод появится здесь";startTimer();startRec(st.current)}
+function stopApp(){st.manualStop=true;st.running=false;st.switching=false;st.buffer="";clearTimeout(st.restartTimer);hardStop();status("off","стоп");el.liveText.textContent="Остановлено"}
+function force(lang){st.current=lang;updateListenUi();if(st.running&&!st.manualStop)switchTo(lang)}
+function ui(){document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));b.classList.add("active");id(b.dataset.tab).classList.add("active")}));el.startBtn.onclick=startApp;el.stopBtn.onclick=stopApp;el.forceRuBtn.onclick=()=>force("ru-RU");el.forceViBtn.onclick=()=>force("vi-VN");el.clearBtn.onclick=()=>{st.history=[];saveHist();renderHistory()};el.saveKeyBtn.onclick=()=>{localStorage.setItem("RUVI_API_KEY",el.apiKey.value.trim());el.saveKeyBtn.textContent="Сохранено";setTimeout(()=>el.saveKeyBtn.textContent="Сохранить",900)};el.showKeyBtn.onclick=()=>{el.apiKey.type=el.apiKey.type==="password"?"text":"password";el.showKeyBtn.textContent=el.apiKey.type==="password"?"Показать":"Скрыть"};el.pauseMs.onchange=()=>localStorage.setItem("RUVI_PAUSE_MS",el.pauseMs.value);el.switchMs.onchange=()=>localStorage.setItem("RUVI_SWITCH_MS",el.switchMs.value);el.saveWorkerBtn.onclick=()=>{localStorage.setItem("RUVI_WORKER_URL",el.workerUrl.value.trim()||DEFAULT_WORKER);el.saveWorkerBtn.textContent="Worker сохранён";setTimeout(()=>el.saveWorkerBtn.textContent="Сохранить Worker",900)};window.addEventListener("pagehide",stopApp)}
+ui();load();if(!SR){status("err","нет SpeechRecognition");el.liveText.textContent="SpeechRecognition не найден. На iPhone откройте через Safari."}
+})();
+</script>
+</body>
+</html>
