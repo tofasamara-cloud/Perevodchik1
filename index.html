@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RU↔VI Translator v4.2</title>
+<style>
+body{font-family:sans-serif;background:#0b1220;color:#fff;margin:0;padding:10px}
+.card{background:#121a2b;border-radius:12px;padding:12px;margin-bottom:10px}
+button{padding:10px;border-radius:8px;border:none;margin:5px}
+input{padding:10px;border-radius:8px;width:100%}
+.ru{color:#4da3ff}
+.vi{color:#4dff9a}
+</style>
+</head>
+<body>
+
+<div class="card">
+<h3>🎤 Текущая фраза</h3>
+<div id="liveText"></div>
+<div id="liveTranslation"></div>
+</div>
+
+<div class="card">
+<h3>⚙️ API ключ</h3>
+<input id="apiKey" placeholder="Введите API ключ"/>
+<button onclick="saveKey()">Сохранить</button>
+</div>
+
+<div class="card">
+<button onclick="start()">▶️ Старт</button>
+<button onclick="stopAll()">⛔ Стоп</button>
+</div>
+
+<div id="log"></div>
+
+<script>
+let recognition;
+let currentLang = "vi-VN";
+let isSwitching = false;
+let stopFlag = false;
+
+function saveKey(){
+ localStorage.setItem("API_KEY", document.getElementById("apiKey").value);
+}
+
+function detectLang(text){
+ if(/[а-яА-Я]/.test(text)) return "ru-RU";
+ return "vi-VN";
+}
+
+function nextLang(lang){
+ return lang==="vi-VN" ? "ru-RU" : "vi-VN";
+}
+
+function createRecognition(lang){
+ const R = new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+ R.lang = lang;
+ R.interimResults = true;
+ R.continuous = true;
+ return R;
+}
+
+function bind(rec){
+ let buffer = "";
+ let lastTime = Date.now();
+
+ rec.onresult = (e)=>{
+  let txt="";
+  for(let i=e.resultIndex;i<e.results.length;i++){
+    txt += e.results[i][0].transcript;
+  }
+  buffer = txt;
+  document.getElementById("liveText").innerText = txt;
+  lastTime = Date.now();
+ };
+
+ rec.onend = ()=>{ if(!stopFlag) startRec(currentLang); };
+
+ setInterval(()=>{
+  if(buffer && Date.now()-lastTime>800){
+    finalize(buffer);
+    buffer="";
+  }
+ },300);
+}
+
+async function finalize(text){
+ const src = detectLang(text);
+ const tgt = nextLang(src);
+
+ addLog(text, src);
+
+ switchLang(tgt);
+
+ translate(text, src, tgt);
+}
+
+function addLog(text, lang){
+ const div = document.createElement("div");
+ div.className="card "+(lang==="ru-RU"?"ru":"vi");
+ div.innerText=text;
+ document.getElementById("log").prepend(div);
+}
+
+async function switchLang(lang){
+ if(isSwitching) return;
+ isSwitching=true;
+
+ try{recognition.abort();}catch(e){}
+
+ await new Promise(r=>setTimeout(r,300));
+
+ currentLang=lang;
+ startRec(lang);
+
+ isSwitching=false;
+}
+
+function startRec(lang){
+ recognition = createRecognition(lang);
+ bind(recognition);
+ try{recognition.start();}catch(e){}
+}
+
+function start(){
+ stopFlag=false;
+ startRec(currentLang);
+}
+
+function stopAll(){
+ stopFlag=true;
+ try{recognition.abort();}catch(e){}
+}
+
+async function translate(text, src, tgt){
+ const key = localStorage.getItem("API_KEY");
+ if(!key) return;
+
+ try{
+  const res = await fetch("https://square-cloud-e319.tofasamara.workers.dev",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text, source:src, target:tgt, apiKey:key})
+  });
+  const data = await res.json();
+  document.getElementById("liveTranslation").innerText = data.translation || "";
+ }catch(e){
+  document.getElementById("liveTranslation").innerText="Ошибка перевода";
+ }
+}
+</script>
+
+</body>
+</html>
