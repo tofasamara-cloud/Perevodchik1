@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Переводчик RU ↔ VI v3.9</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08101d;
+      --card: #121c2d;
+      --card-2: #172437;
+      --line: #2a3952;
+      --text: #f3f7ff;
+      --muted: #9fb0cc;
+      --ok: #89f0b2;
+      --warn: #ffd479;
+      --bad: #ff9c9c;
+      --accent: #6db3ff;
+      --accent-2: #86c8ff;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: linear-gradient(180deg, #07101d 0%, #0b1220 100%); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { min-height: 100vh; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 16px 14px 40px; }
+    .card {
+      background: linear-gradient(180deg, rgba(23,36,55,.98), rgba(17,27,43,.98));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.16);
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; line-height: 1.2; }
+    h2 { font-size: 18px; margin-bottom: 12px; }
+    h3 { font-size: 14px; color: var(--muted); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .topline { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+    .small { font-size: 13px; color: var(--muted); }
+    .row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+    @media (max-width: 900px) {
+      .col-3, .col-4, .col-6, .col-8, .col-12 { grid-column: span 12; }
+    }
+    label { display: block; margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+    select, input, textarea, button {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(8, 16, 29, .92);
+      color: var(--text);
+      font-size: 16px;
+      padding: 13px 14px;
+      outline: none;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active { transform: scale(.99); }
+    button.primary { background: linear-gradient(180deg, #2b74d1, #1b5fb6); border-color: #367de0; }
+    button.secondary { background: linear-gradient(180deg, #172336, #111a28); }
+    button.warn { background: linear-gradient(180deg, #604313, #432d0b); border-color: #8a6520; }
+    button.danger { background: linear-gradient(180deg, #5e2328, #43161a); border-color: #8d3a42; }
+    button.success { background: linear-gradient(180deg, #1d5f3a, #15462a); border-color: #2d8953; }
+    .controls { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; }
+    @media (max-width: 900px) { .controls { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    .pillbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .pill {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(7, 13, 24, .7);
+    }
+    .status {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(8, 16, 29, .9);
+      border: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .ok { color: var(--ok); }
+    .warn-text { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+    .panel {
+      min-height: 138px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(8, 16, 29, .76);
+      padding: 14px;
+    }
+    .list {
+      max-height: 420px;
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(8,16,29,.62);
+      padding: 10px;
+    }
+    .entry {
+      border: 1px solid rgba(54, 73, 106, .65);
+      background: rgba(14, 21, 34, .95);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .entry:last-child { margin-bottom: 0; }
+    .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .src-badge, .dst-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      margin-right: 6px;
+      font-size: 12px;
+    }
+    .queue { display: inline-flex; gap: 8px; align-items: center; }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(109,179,255,.6); animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(109,179,255,.55);} 70% { box-shadow: 0 0 0 12px rgba(109,179,255,0);} 100% { box-shadow: 0 0 0 0 rgba(109,179,255,0);} }
+    .hint { line-height: 1.45; }
+    .splitline { height: 1px; background: var(--line); margin: 12px 0; }
+    .right { text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="topline">
+        <div>
+          <h1>Переводчик RU ↔ VI</h1>
+          <div class="small">Версия: <strong>3.9 hard-reset-vi-to-ru</strong> · нормативная база: <strong>3.4</strong> · один файл index.html</div>
+        </div>
+        <div class="queue small"><span class="dot"></span><span id="engineMode">Асинхронная транскрибация + лингвистическое определение фразы RU/VI</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Режим работы</h2>
+      <div class="row">
+        <div class="col-3">
+          <label for="langA">Язык A</label>
+          <select id="langA">
+            <option value="ru-RU">Русский</option>
+            <option value="vi-VN">Tiếng Việt</option>
+          </select>
+        </div>
+        <div class="col-3">
+          <label for="langB">Язык B</label>
+          <select id="langB">
+            <option value="vi-VN">Tiếng Việt</option>
+            <option value="ru-RU">Русский</option>
+          </select>
+        </div>
+        <div class="col-3">
+          <label for="softPause">Мягкая пауза, мс</label>
+          <input id="softPause" type="number" value="700" min="250" max="2500" step="50" />
+        </div>
+        <div class="col-3">
+          <label for="hardPause">Жесткая пауза, мс</label>
+          <input id="hardPause" type="number" value="1400" min="500" max="4000" step="50" />
+        </div>
+        <div class="col-3">
+          <label for="maxWords">Макс. слов в сегменте</label>
+          <input id="maxWords" type="number" value="18" min="4" max="60" step="1" />
+        </div>
+        <div class="col-3">
+          <label for="switchDelay">Задержка переключения языка, мс</label>
+          <input id="switchDelay" type="number" value="180" min="0" max="1200" step="20" />
+        </div>
+        <div class="col-6">
+          <label for="apiEndpoint">Cloudflare Worker / API перевода</label>
+          <input id="apiEndpoint" type="text" value="https://square-cloud-e319.tofasamara.workers.dev" placeholder="https://...workers.dev" />
+        </div>
+      </div>
+      <div class="controls" style="margin-top:12px;">
+        <button id="startBtn" class="primary">Старт</button>
+        <button id="stopBtn" class="secondary">Стоп</button>
+        <button id="swapBtn" class="success">Поменять языки</button>
+        <button id="switchBtn" class="warn">Переключить язык сейчас</button>
+        <button id="clearBtn" class="danger">Очистить историю</button>
+      </div>
+      <div class="pillbar">
+        <span class="pill">Только 2 языка: RU и VI</span>
+        <span class="pill">Транскрибация не ждёт перевод</span>
+        <span class="pill">Язык фразы определяется по тексту, а не по модулю слушания</span>
+        <span class="pill">После сегмента движок сразу сканирует второй язык</span>
+        <span class="pill">История хранится локально</span>
+      </div>
+      <div id="status" class="status small">Готово к запуску.</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Текущее распознавание</h2>
+        <div class="panel">
+          <div class="small">Активный модуль слушания: <strong id="activeLangLabel">—</strong></div>
+          <div class="splitline"></div>
+          <div id="interim" class="mono">—</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Последний финальный сегмент</h2>
+        <div class="panel">
+          <div class="small">Режим: сегмент фиксируется как фраза, язык определяется по тексту, перевод догружается отдельно</div>
+          <div class="splitline"></div>
+          <div id="lastSegment" class="mono">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Общий транскрипт</h2>
+        <textarea id="transcript" placeholder="Сюда будут идти финальные фразы; язык определяется по лингвистике текста..."></textarea>
+      </div>
+      <div class="card">
+        <h2>Общий перевод</h2>
+        <textarea id="translation" placeholder="Переводы будут приходить асинхронно, без блокировки распознавания..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Лента диалога</h2>
+      <div id="segmentsLog" class="list"></div>
+    </div>
+
+    <div class="card">
+      <h2>Что изменено в версии 3.6</h2>
+      <div class="small hint">
+        1) Транскрибация и перевод разведены: сегмент появляется сразу, перевод обрабатывается в отдельной очереди.<br>
+        2) Фраза теперь анализируется лингвистически: RU/VI определяется по буквам, диакритике и служебным словам, а не по активному модулю SpeechRecognition.<br>
+        3) Активный модуль слушания остаётся только способом получить текст; источником языка считается сама фраза.<br>
+        4) Нет поиска английского и других языков: только ru-RU и vi-VN.<br>
+        5) v3.8: после готовой фразы следующий модуль выбирается по лингвистически определённому языку фразы: VI → слушать RU, RU → слушать VI.<br>
+        5) История, настройки и адрес Worker сохраняются в localStorage.<br>
+        6) Переключение VI→RU/RU→VI выполняется через безопасный stop→onend→start, без двойного старта. <br>
+        7) Оставлен один HTML-файл для загрузки на Cloud Pages / GitHub Pages.
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const APP_VERSION = '3.9 hard-reset-vi-to-ru';
+  const STORAGE_KEY = 'ruvi_translator_v3_9_hard_reset_vi_to_ru';
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const els = {
+    langA: document.getElementById('langA'),
+    langB: document.getElementById('langB'),
+    softPause: document.getElementById('softPause'),
+    hardPause: document.getElementById('hardPause'),
+    maxWords: document.getElementById('maxWords'),
+    switchDelay: document.getElementById('switchDelay'),
+    apiEndpoint: document.getElementById('apiEndpoint'),
+    startBtn: document.getElementById('startBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    swapBtn: document.getElementById('swapBtn'),
+    switchBtn: document.getElementById('switchBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    status: document.getElementById('status'),
+    interim: document.getElementById('interim'),
+    lastSegment: document.getElementById('lastSegment'),
+    transcript: document.getElementById('transcript'),
+    translation: document.getElementById('translation'),
+    segmentsLog: document.getElementById('segmentsLog'),
+    activeLangLabel: document.getElementById('activeLangLabel')
+  };
+
+  const state = {
+    recognition: null,
+    listening: false,
+    activeLang: 'ru-RU',
+    currentBuffer: '',
+    interimText: '',
+    hardTimer: null,
+    softTimer: null,
+    segments: [],
+    translationQueue: [],
+    translationBusy: false,
+    manualStop: false,
+    restartLockUntil: 0,
+    segmentCounter: 0,
+    justSwitched: false,
+    starting: false,
+    stopping: false,
+    restartTimer: null,
+    activeGeneration: 0,
+    lastError: ''
+  };
+
+  function langShort(lang) {
+    return lang === 'ru-RU' ? 'RU' : 'VI';
+  }
+
+  function labelFor(lang) {
+    return lang === 'ru-RU' ? 'Русский' : 'Tiếng Việt';
+  }
+
+  function getTargetLang(sourceLang) {
+    return sourceLang === els.langA.value ? els.langB.value : els.langA.value;
+  }
+
+  function normalizeText(text) {
+    return String(text || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function setStatus(message, tone = 'muted') {
+    const cls = tone === 'ok' ? 'ok' : tone === 'warn' ? 'warn-text' : tone === 'bad' ? 'bad' : '';
+    els.status.innerHTML = `<span class="${cls}">${escapeHtml(message)}</span>`;
+  }
+
+  function persist() {
+    const payload = {
+      version: APP_VERSION,
+      settings: {
+        langA: els.langA.value,
+        langB: els.langB.value,
+        softPause: els.softPause.value,
+        hardPause: els.hardPause.value,
+        maxWords: els.maxWords.value,
+        switchDelay: els.switchDelay.value,
+        apiEndpoint: els.apiEndpoint.value
+      },
+      transcript: els.transcript.value,
+      translation: els.translation.value,
+      segments: state.segments.slice(0, 120)
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  function restore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.settings) {
+        els.langA.value = saved.settings.langA || 'ru-RU';
+        els.langB.value = saved.settings.langB || 'vi-VN';
+        els.softPause.value = saved.settings.softPause || '700';
+        els.hardPause.value = saved.settings.hardPause || '1400';
+        els.maxWords.value = saved.settings.maxWords || '18';
+        els.switchDelay.value = saved.settings.switchDelay || '180';
+        els.apiEndpoint.value = saved.settings.apiEndpoint || els.apiEndpoint.value;
+      }
+      els.transcript.value = saved.transcript || '';
+      els.translation.value = saved.translation || '';
+      state.segments = Array.isArray(saved.segments) ? saved.segments : [];
+    } catch (err) {
+      console.warn('Restore failed', err);
+    }
+  }
+
+  function ensureDistinctLanguages() {
+    if (els.langA.value === els.langB.value) {
+      els.langB.value = els.langA.value === 'ru-RU' ? 'vi-VN' : 'ru-RU';
+      setStatus('Язык A и язык B не могут совпадать. Второй язык исправлен автоматически.', 'warn');
+    }
+  }
+
+  function wordCount(text) {
+    const t = normalizeText(text);
+    return t ? t.split(/\s+/).length : 0;
+  }
+
+  function unsafeEnding(text) {
+    const lower = normalizeText(text).toLowerCase();
+    if (!lower) return true;
+    const badEndings = [
+      'и','а','но','или','что','если','когда','который','потому','в','на','для','по','с','из',
+      'và','nhưng','nếu','khi','mà','là','của','ở','với','để','cho'
+    ];
+    return badEndings.some(x => lower === x || lower.endsWith(' ' + x));
+  }
+
+
+  function detectPhraseLanguage(text, captureLang) {
+    const raw = normalizeText(text);
+    const lower = raw.toLowerCase();
+    const tokens = lower.match(/[\p{L}]+/gu) || [];
+
+    let ruScore = 0;
+    let viScore = 0;
+
+    const cyr = raw.match(/[А-Яа-яЁё]/g) || [];
+    const viTone = raw.match(/[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/gi) || [];
+    const latin = raw.match(/[A-Za-z]/g) || [];
+
+    ruScore += cyr.length * 3;
+    viScore += viTone.length * 4;
+
+    const ruWords = new Set(['я','ты','он','она','мы','вы','они','это','как','что','да','нет','не','и','а','но','или','если','когда','где','куда','почему','спасибо','пожалуйста','хорошо','сейчас','можно','нужно','будет','есть','хочу','говорю','слушай']);
+    const viWords = new Set(['tôi','mình','bạn','anh','chị','em','ông','bà','là','và','không','có','được','rồi','này','đó','gì','sao','đâu','khi','nếu','nhưng','của','cho','với','để','cảm','ơn','xin','chào','nghe','nói']);
+
+    for (const t of tokens) {
+      if (ruWords.has(t)) ruScore += 2;
+      if (viWords.has(t)) viScore += 2;
+      if (/[а-яё]/i.test(t)) ruScore += 2;
+      if (/[ăâđêôơư]/i.test(t)) viScore += 3;
+    }
+
+    // Если распознавание Vietnamese вернуло текст без тонов латиницей, даём слабый вес VI,
+    // но не разрешаем третьи языки. Это помогает фразам типа "xin chao", "cam on".
+    if (!cyr.length && latin.length) {
+      const viAsciiHints = ['xin','chao','cam','on','khong','duoc','toi','ban','anh','chi','em','nhe','roi','di','ve','nghe','noi'];
+      if (tokens.some(t => viAsciiHints.includes(t))) viScore += 3;
+    }
+
+    if (ruScore === 0 && viScore === 0) {
+      return { lang: captureLang || els.langA.value, confidence: 0, ruScore, viScore, method: 'fallback-capture-module' };
+    }
+
+    const lang = ruScore >= viScore ? 'ru-RU' : 'vi-VN';
+    const diff = Math.abs(ruScore - viScore);
+    const total = Math.max(1, ruScore + viScore);
+    const confidence = Math.min(1, diff / total + 0.35);
+    return { lang, confidence, ruScore, viScore, method: 'phrase-linguistic' };
+  }
+
+  function updateActiveLabel() {
+    els.activeLangLabel.textContent = `${labelFor(state.activeLang)} (${langShort(state.activeLang)})`;
+  }
+
+  function appendTranscriptLine(seg) {
+    const line = `[${langShort(seg.sourceLang)}] ${seg.text}`;
+    els.transcript.value += (els.transcript.value ? '\n' : '') + line;
+  }
+
+  function appendTranslationLine(seg) {
+    const line = `[${langShort(seg.sourceLang)}→${langShort(seg.targetLang)}] ${seg.translation || ''}`;
+    els.translation.value += (els.translation.value ? '\n' : '') + line;
+  }
+
+  function renderSegments() {
+    if (!state.segments.length) {
+      els.segmentsLog.innerHTML = '<div class="small">История пока пустая.</div>';
+      return;
+    }
+    els.segmentsLog.innerHTML = state.segments.map(seg => `
+      <div class="entry">
+        <div class="meta">${escapeHtml(seg.timeLabel)} · сегмент ${seg.id} · модуль ${escapeHtml(langShort(seg.captureLang || seg.sourceLang))} · ${escapeHtml(seg.reason)} ${seg.translationPending ? '· перевод в очереди' : ''}</div>
+        <div><span class="src-badge">${escapeHtml(langShort(seg.sourceLang))}</span><span class="dst-badge">${escapeHtml(langShort(seg.targetLang))}</span></div>
+        <div class="mono" style="margin-top:8px;">${escapeHtml(seg.text)}</div>
+        <div class="mono small" style="margin-top:10px; color: var(--accent-2);">${escapeHtml(seg.translationPending ? '…перевод загружается…' : (seg.translation || ''))}</div>
+      </div>
+    `).join('');
+  }
+
+  function updateLastSegment(seg) {
+    els.lastSegment.textContent = JSON.stringify({
+      id: seg.id,
+      captureModule: seg.captureLang || seg.sourceLang,
+      detectedSource: seg.sourceLang,
+      target: seg.targetLang,
+      text: seg.text,
+      translation: seg.translation || '',
+      reason: seg.reason,
+      translationPending: seg.translationPending
+    }, null, 2);
+  }
+
+  async function translateViaWorker(seg) {
+    const endpoint = els.apiEndpoint.value.trim();
+    if (!endpoint) return '';
+    const body = {
+      text: seg.text,
+      source_language: seg.sourceLang,
+      target_language: seg.targetLang,
+      sourceLang: seg.sourceLang,
+      targetLang: seg.targetLang
+    };
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return normalizeText(
+      data.translation || data.translatedText || data.result || data.output || ''
+    );
+  }
+
+  function enqueueTranslation(seg) {
+    state.translationQueue.push(seg.id);
+    processTranslationQueue();
+  }
+
+  async function processTranslationQueue() {
+    if (state.translationBusy) return;
+    if (!state.translationQueue.length) return;
+    state.translationBusy = true;
+
+    while (state.translationQueue.length) {
+      const segId = state.translationQueue.shift();
+      const seg = state.segments.find(x => x.id === segId);
+      if (!seg || !seg.translationPending) continue;
+
+      try {
+        const translated = await translateViaWorker(seg);
+        seg.translation = translated || '[пустой ответ перевода]';
+        seg.translationPending = false;
+        appendTranslationLine(seg);
+        updateLastSegment(seg);
+        setStatus(`Перевод готов: сегмент ${seg.id} ${langShort(seg.sourceLang)}→${langShort(seg.targetLang)}.`, 'ok');
+      } catch (err) {
+        seg.translation = `[ошибка перевода: ${err.message}]`;
+        seg.translationPending = false;
+        appendTranslationLine(seg);
+        updateLastSegment(seg);
+        setStatus(`Ошибка перевода в сегменте ${seg.id}: ${err.message}`, 'bad');
+      }
+
+      renderSegments();
+      persist();
+    }
+
+    state.translationBusy = false;
+  }
+
+  function schedulePauseChecks() {
+    clearTimeout(state.softTimer);
+    clearTimeout(state.hardTimer);
+    const soft = Number(els.softPause.value || 700);
+    const hard = Number(els.hardPause.value || 1400);
+
+    state.softTimer = setTimeout(() => {
+      if (state.listening && state.currentBuffer && !unsafeEnding(state.currentBuffer)) {
+        finalizeSegment('soft-pause');
+      }
+    }, soft);
+
+    state.hardTimer = setTimeout(() => {
+      if (state.listening && state.currentBuffer) {
+        finalizeSegment('hard-pause');
+      }
+    }, hard);
+  }
+
+  function stopRecognitionInstance(mode = 'stop') {
+    const rec = state.recognition;
+    if (!rec) return;
+    state.stopping = true;
+    try {
+      if (mode === 'abort') rec.abort();
+      else rec.stop();
+    } catch (_) {
+      try { rec.abort(); } catch (__) {}
+    }
+  }
+
+  function hardResetRecognitionToLanguage(next, reason = 'hard-reset') {
+    // v3.9: для iPhone/Safari после Vietnamese → Russian обычный stop() часто
+    // не освобождает старый vi-VN движок. Поэтому старый объект полностью
+    // отцепляется, принудительно abort() и новый ru-RU/vi-VN объект создаётся заново.
+    clearTimeout(state.restartTimer);
+    state.activeGeneration++;
+    state.starting = false;
+    state.stopping = false;
+
+    const old = state.recognition;
+    state.recognition = null;
+    if (old) {
+      try { old.onstart = old.onresult = old.onerror = old.onend = null; } catch (_) {}
+      try { old.abort(); } catch (_) { try { old.stop(); } catch (__) {} }
+    }
+
+    state.activeLang = next;
+    state.currentBuffer = '';
+    state.interimText = '';
+    els.interim.textContent = '—';
+    updateActiveLabel();
+    setStatus(`Жёсткое переключение на ${langShort(next)} (${reason}). Старый модуль уничтожен.`, 'warn');
+    scheduleRecognitionStart(Number(els.switchDelay.value || 260));
+  }
+
+  function scheduleRecognitionStart(delay = 220) {
+    clearTimeout(state.restartTimer);
+    const safeDelay = Math.max(180, Number(delay || 220));
+    state.restartLockUntil = Date.now() + safeDelay;
+    state.restartTimer = setTimeout(() => {
+      if (!state.listening || state.manualStop) return;
+      if (state.recognition || state.starting || Date.now() < state.restartLockUntil) {
+        scheduleRecognitionStart(220);
+        return;
+      }
+      startRecognitionInstance();
+    }, safeDelay);
+  }
+
+  function nextLanguageFrom(current) {
+    return current === els.langA.value ? els.langB.value : els.langA.value;
+  }
+
+  function switchToLanguage(next, reason = 'direct-switch') {
+    if (!state.listening) return;
+    ensureDistinctLanguages();
+    if (next !== els.langA.value && next !== els.langB.value) {
+      next = els.langA.value;
+    }
+
+    const previous = state.activeLang;
+
+    // v3.9: всегда используем hard reset при смене языка. Это особенно важно
+    // для VI → RU, где Safari может оставить старый vi-VN recognition живым.
+    if (previous !== next) {
+      hardResetRecognitionToLanguage(next, `${reason}; ${langShort(previous)}→${langShort(next)}`);
+      return;
+    }
+
+    state.activeLang = next;
+    state.currentBuffer = '';
+    state.interimText = '';
+    els.interim.textContent = '—';
+    updateActiveLabel();
+    setStatus(`Остаюсь на модуле ${langShort(next)} (${reason}).`, 'warn');
+    if (!state.recognition) scheduleRecognitionStart(Number(els.switchDelay.value || 260));
+  }
+
+  function switchLanguageCycle(reason = 'manual-switch') {
+    switchToLanguage(nextLanguageFrom(state.activeLang), reason);
+  }
+
+  function finalizeSegment(reason) {
+    const text = normalizeText(state.currentBuffer);
+    if (!text) return;
+
+    clearTimeout(state.softTimer);
+    clearTimeout(state.hardTimer);
+
+    state.currentBuffer = '';
+    state.interimText = '';
+    els.interim.textContent = '—';
+
+    const captureLang = state.activeLang;
+    const detected = detectPhraseLanguage(text, captureLang);
+    const sourceLang = detected.lang;
+    const targetLang = getTargetLang(sourceLang);
+    const seg = {
+      id: ++state.segmentCounter,
+      ts: new Date().toISOString(),
+      timeLabel: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      captureLang,
+      sourceLang,
+      targetLang,
+      text,
+      reason: `${reason}; ${detected.method}; score RU=${detected.ruScore}, VI=${detected.viScore}, conf=${detected.confidence.toFixed(2)}`,
+      translation: '',
+      translationPending: true
+    };
+
+    state.segments.unshift(seg);
+    appendTranscriptLine(seg);
+    renderSegments();
+    updateLastSegment(seg);
+    persist();
+    enqueueTranslation(seg);
+
+    if (state.listening) {
+      // v3.9: следующий модуль выбирается по языку самой фразы, затем создаётся
+      // новый объект SpeechRecognition. Если фраза VI — следующий слушатель RU.
+      switchToLanguage(targetLang, `segment-complete phrase ${langShort(sourceLang)}→listen ${langShort(targetLang)}`);
+    }
+  }
+
+  function startRecognitionInstance() {
+    if (!SpeechRecognition) {
+      setStatus('Web Speech API недоступен. На iPhone лучше проверять в Safari. В некоторых PWA режимах распознавание может не стартовать.', 'bad');
+      return;
+    }
+    if (!state.listening || state.manualStop) return;
+    if (state.starting || state.recognition) return;
+    if (Date.now() < state.restartLockUntil) {
+      scheduleRecognitionStart(state.restartLockUntil - Date.now() + 60);
+      return;
+    }
+
+    const generation = ++state.activeGeneration;
+    state.starting = true;
+    state.stopping = false;
+    const rec = new SpeechRecognition();
+    state.recognition = rec;
+    rec.lang = state.activeLang;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => {
+      state.starting = false;
+      state.stopping = false;
+      updateActiveLabel();
+      setStatus(`Слушаю модулем ${labelFor(state.activeLang)}. Язык итоговой фразы будет определён по тексту.`, 'ok');
+    };
+
+    rec.onresult = (event) => {
+      let interim = '';
+      let finalChunk = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = normalizeText(result[0] ? result[0].transcript : '');
+        if (!transcript) continue;
+        if (result.isFinal) finalChunk += ' ' + transcript;
+        else interim += ' ' + transcript;
+      }
+
+      if (finalChunk) {
+        state.currentBuffer = normalizeText(state.currentBuffer + ' ' + finalChunk);
+      }
+      state.interimText = normalizeText(interim);
+
+      const shown = normalizeText((state.currentBuffer ? state.currentBuffer + ' ' : '') + state.interimText);
+      els.interim.textContent = shown || '—';
+
+      if (shown) schedulePauseChecks();
+      if (wordCount(state.currentBuffer) >= Number(els.maxWords.value || 18) && !unsafeEnding(state.currentBuffer)) {
+        finalizeSegment('max-words');
+      }
+    };
+
+    rec.onerror = (event) => {
+      const error = event && event.error ? event.error : 'unknown';
+      state.lastError = error;
+
+      if (error === 'aborted') {
+        // Нормальная часть безопасного переключения stop/start. Не показываем как ошибку.
+        return;
+      }
+
+      if (error === 'no-speech') {
+        setStatus(`Нет речи на ${langShort(state.activeLang)}. Проверяю второй заранее выбранный язык через безопасный рестарт.`, 'warn');
+        switchLanguageCycle('no-speech');
+        return;
+      }
+
+      if (error === 'language-not-supported') {
+        setStatus(`Язык ${state.activeLang} не поддерживается браузером в текущем режиме. Попробуйте обычный Safari, не PWA.`, 'bad');
+        state.listening = false;
+        return;
+      }
+
+      setStatus(`Ошибка распознавания (${error}) на ${langShort(state.activeLang)}. Восстановление через безопасный рестарт.`, 'bad');
+      if (state.recognition === rec) stopRecognitionInstance('abort');
+    };
+
+    rec.onend = () => {
+      if (state.recognition === rec) state.recognition = null;
+      if (generation === state.activeGeneration) {
+        state.starting = false;
+        state.stopping = false;
+      }
+      if (!state.listening || state.manualStop) return;
+      if (generation !== state.activeGeneration) return;
+      scheduleRecognitionStart(Number(els.switchDelay.value || 260));
+    };
+
+    try {
+      rec.start();
+    } catch (err) {
+      state.starting = false;
+      if (state.recognition === rec) state.recognition = null;
+      const msg = String(err && err.message ? err.message : err);
+      setStatus(`Старт распознавания отложен: ${msg}. Повтор через безопасную паузу.`, 'warn');
+      scheduleRecognitionStart(420);
+    }
+  }
+
+  function startAll() {
+    ensureDistinctLanguages();
+    state.manualStop = false;
+    state.listening = true;
+    state.activeLang = els.langA.value;
+    state.restartLockUntil = 0;
+    updateActiveLabel();
+    scheduleRecognitionStart(80);
+    persist();
+  }
+
+  function stopAll() {
+    state.manualStop = true;
+    state.listening = false;
+    clearTimeout(state.softTimer);
+    clearTimeout(state.hardTimer);
+    clearTimeout(state.restartTimer);
+    if (state.currentBuffer) finalizeSegment('manual-stop');
+    stopRecognitionInstance('abort');
+    state.recognition = null;
+    state.starting = false;
+    state.stopping = false;
+    els.interim.textContent = '—';
+    setStatus('Остановлено.', 'warn');
+    persist();
+  }
+
+  function clearAll() {
+    stopAll();
+    state.currentBuffer = '';
+    state.interimText = '';
+    state.segments = [];
+    state.translationQueue = [];
+    state.translationBusy = false;
+    state.segmentCounter = 0;
+    els.interim.textContent = '—';
+    els.lastSegment.textContent = '—';
+    els.transcript.value = '';
+    els.translation.value = '';
+    renderSegments();
+    persist();
+    setStatus('История очищена.', 'warn');
+  }
+
+  els.startBtn.addEventListener('click', startAll);
+  els.stopBtn.addEventListener('click', stopAll);
+  els.switchBtn.addEventListener('click', () => switchLanguageCycle('manual-button'));
+  els.swapBtn.addEventListener('click', () => {
+    const a = els.langA.value;
+    els.langA.value = els.langB.value;
+    els.langB.value = a;
+    if (!state.listening) {
+      state.activeLang = els.langA.value;
+      updateActiveLabel();
+    }
+    persist();
+    setStatus('Языки поменяны местами.', 'ok');
+  });
+  els.clearBtn.addEventListener('click', clearAll);
+
+  [els.langA, els.langB, els.softPause, els.hardPause, els.maxWords, els.switchDelay, els.apiEndpoint].forEach(el => {
+    el.addEventListener('change', () => {
+      ensureDistinctLanguages();
+      persist();
+      updateActiveLabel();
+    });
+  });
+
+  restore();
+  ensureDistinctLanguages();
+  state.segmentCounter = state.segments.reduce((max, seg) => Math.max(max, Number(seg.id || 0)), 0);
+  state.activeLang = els.langA.value;
+  updateActiveLabel();
+  renderSegments();
+
+  window.addEventListener('beforeunload', persist);
+})();
+</script>
+</body>
+</html>
