@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Голосовой переводчик RU ↔ VI</title>
+  <style>
+    /* Твои стили сохранены, добавил пару штрихов для кнопок прослушивания */
+    :root {
+      --bg: #f7f8fb; --card: #ffffff; --text: #111827; --muted: #6b7280;
+      --border: #dbe2ea; --accent: #2563eb; --accent-pressed: #1d4ed8;
+      --danger: #dc2626; --danger-pressed: #b91c1c; --ok: #0f766e;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; padding: 16px; }
+    .app { max-width: 600px; margin: 0 auto; display: grid; gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 16px; box-shadow: 0 4px 14px rgba(15,23,42,0.04); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: grid; gap: 8px; }
+    label { font-size: 14px; font-weight: 600; }
+    select, button { width: 100%; min-height: 52px; border-radius: 14px; border: 1px solid var(--border); font-size: 17px; padding: 0 14px; background: #fff; cursor: pointer; }
+    button { border: none; font-weight: 700; color: #fff; }
+    .btn-start { background: var(--accent); }
+    .btn-stop { background: var(--danger); }
+    .btn-speak { background: var(--ok); margin-top: 10px; min-height: 40px; font-size: 14px; }
+    .status { font-size: 14px; font-weight: 600; color: var(--ok); }
+    .output { min-height: 80px; font-size: 18px; line-height: 1.5; white-space: pre-wrap; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+    .block-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <h2 style="margin:0 0 10px 0;">RU ↔ VI Translator</h2>
+      <div class="grid">
+        <div class="field">
+          <label>С языка</label>
+          <select id="sourceLang">
+            <option value="ru-RU">Русский</option>
+            <option value="vi-VN">Vietnamese</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>На язык</label>
+          <select id="targetLang">
+            <option value="vi-VN">Vietnamese</option>
+            <option value="ru-RU">Русский</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <button id="startBtn" class="btn-start">Запись</button>
+        <button id="stopBtn" class="btn-stop" disabled>Стоп</button>
+      </div>
+      <div id="status" style="margin-top:10px; text-align:center;">Готов</div>
+    </section>
+
+    <section class="card">
+      <div class="block-title">Оригинал</div>
+      <div id="text" class="output">—</div>
+    </section>
+
+    <section class="card">
+      <div class="block-title">Перевод</div>
+      <div id="translation" class="output">—</div>
+      <button id="speakBtn" class="btn-speak" style="display:none;">Прослушать 🔊</button>
+    </section>
+  </main>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const speakBtn = document.getElementById('speakBtn');
+    const statusEl = document.getElementById('status');
+    const textEl = document.getElementById('text');
+    const translationEl = document.getElementById('translation');
+    const sourceLangEl = document.getElementById('sourceLang');
+    const targetLangEl = document.getElementById('targetLang');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const synth = window.speechSynthesis;
+
+    let recognition;
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+    }
+
+    // Озвучка
+    speakBtn.onclick = () => {
+      const utterance = new SpeechSynthesisUtterance(translationEl.textContent);
+      utterance.lang = targetLangEl.value;
+      synth.speak(utterance);
+    };
+
+    if (recognition) {
+      recognition.onstart = () => {
+        statusEl.textContent = "🔊 Слушаю...";
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          textEl.textContent = finalTranscript;
+          doTranslate(finalTranscript);
+        } else {
+          textEl.textContent = interimTranscript;
+        }
+      };
+
+      recognition.onerror = (e) => {
+        statusEl.textContent = "Ошибка: " + e.error;
+        stop();
+      };
+
+      recognition.onend = () => {
+        statusEl.textContent = "Остановлено";
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+    }
+
+    async function doTranslate(text) {
+      statusEl.textContent = "⌛ Перевожу...";
+      try {
+        const response = await fetch('https://rapid-bar-4bfa.tofasamara.workers.dev', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            source: sourceLangEl.value.split('-')[0],
+            target: targetLangEl.value.split('-')[0]
+          })
+        });
+        const data = await response.json();
+        const translated = data.translated || data.translation || data.translatedText;
+        
+        translationEl.textContent = translated;
+        speakBtn.style.display = 'block'; // Показываем кнопку озвучки
+        statusEl.textContent = "✅ Готово";
+      } catch (e) {
+        translationEl.textContent = "Ошибка перевода";
+        statusEl.textContent = "❌ Ошибка";
+      }
+    }
+
+    startBtn.onclick = () => {
+      recognition.lang = sourceLangEl.value;
+      recognition.start();
+    };
+
+    stopBtn.onclick = () => {
+      recognition.stop();
+    };
+
+    function stop() {
+      recognition.stop();
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  </script>
+</body>
+</html>
